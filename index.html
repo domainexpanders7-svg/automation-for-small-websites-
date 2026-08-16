@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous AI Website Builder Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: rgba(18, 26, 44, 0.7);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --accent-blue: #38bdf8;
+      --accent-purple: #818cf8;
+      --accent-green: #34d399;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(129, 140, 248, 0.08) 0%, transparent 40%);
+    }
+
+    header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(12px);
+      background: rgba(9, 13, 22, 0.8);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .badge {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      color: #000;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--accent-green);
+      background: rgba(52, 211, 153, 0.1);
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-green);
+    }
+
+    main {
+      flex: 1;
+      padding: 2rem;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .hero-banner {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 2rem;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .hero-banner h2 {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(to right, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-banner p {
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .diagram-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 2rem;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 500px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .mermaid {
+      width: 100%;
+    }
+
+    footer {
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <h1>Autonomous Platform Architecture</h1>
+      <span class="badge">Live</span>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      Cloudflare Auto-Deploy Active
+    </div>
+  </header>
+
+  <main>
+    <section class="hero-banner">
+      <h2>Multi-Agent Website Builder Topology</h2>
+      <p>Continuous AI-driven software development pipeline integrated with document stores, permission control, secrets management, and automated deployment services.</p>
+    </section>
+
+    <section class="diagram-card">
+      <pre class="mermaid">
+flowchart TD
+    PROMPT[Prompt / User Goal] --> HUMAN[Human Operator / Supervisor]
+    HUMAN --> DOCUMENTS[Documentation Repository]
+    PRODUCTION[Production Systems] --> DOCUMENTS
+
+    DOCUMENTS --> INPUT_DOC[Input Document]
+    DOCUMENTS --> REQUIREMENT_DOC[Requirements Spec]
+    DOCUMENTS --> ARCH_DOC_STORE[Architecture Spec]
+    DOCUMENTS --> DESIGN_DOC[Design Spec]
+    DOCUMENTS --> TEST_DOC[Test Plan & Results]
+    DOCUMENTS --> EVAL_DOC[Evaluation Metrics]
+    DOCUMENTS --> HUMAN_DOC[Human Feedback Log]
+    DOCUMENTS --> PROD_DOC[Production Logs & Telemetry]
+
+    PERMISSION[Permission & Access Manager] --> PAPERCLIP[Paperclip Agent Service]
+    PERMISSION --> TELEBASE[Telebase Database]
+    PERMISSION --> GITHUB[GitHub API / Repositories]
+    PERMISSION --> CLOUDFLARE[Cloudflare Edge Platform]
+
+    SECRETS[Secrets Manager] --> TELEBASE
+    SECRETS --> GITHUB
+    SECRETS --> CLOUDFLARE
+
+    SCHEDULER[Background Scheduler] --> PAPERCLIP
+    SCHEDULER --> RESEARCH[Research Engine]
+    SCHEDULER --> MONITOR[Monitoring & Observability]
+    SCHEDULER --> ANALYTICS[Analytics Pipeline]
+    SCHEDULER --> GROWTH[Growth & Auto-Scaling]
+
+    PAPERCLIP -. optional long running service .-> RENDER[Render Cloud Host]
+      </pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>Deployed directly via GitHub to Cloudflare Pages &bull; Zero Local Build Overhead</p>
+  </footer>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true,
+        curve: 'basis'
+      }
+    });
+  </script>
+</body>
+</html>
