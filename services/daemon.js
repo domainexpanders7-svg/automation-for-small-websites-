@@ -5,6 +5,7 @@
 
 const http = require('http');
 const MasterAutonomousEngine = require('./autonomous_engine');
+const TelegramBotController = require('./telegram_bot');
 const { logger } = require('./observability');
 
 // Configurable Interval (Default: Every 1 hour = 3600000 ms, or ENV specified)
@@ -14,6 +15,8 @@ const PORT = process.env.PORT || 10000;
 class AutonomousDaemon {
   constructor() {
     this.engine = new MasterAutonomousEngine();
+    this.telegramBot = new TelegramBotController();
+    this.telegramBot.startPolling();
     this.isRunning = false;
     this.cycleCount = 0;
     this.setupHttpServer();
