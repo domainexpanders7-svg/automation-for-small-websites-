@@ -173,13 +173,29 @@ class MasterAutonomousEngine {
         this.pushViaGitCli(project.name, owner, htmlContent);
       }
 
-      return `https://github.com/${owner}/${project.name}`;
+      // 4. Automatically enable GitHub Pages for live hosting
+      try {
+        logger.info(`Enabling GitHub Pages for ${owner}/${project.name}...`);
+        await fetch(`https://api.github.com/repos/${owner}/${project.name}/pages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `token ${this.githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            source: { branch: 'main', path: '/' }
+          })
+        });
+      } catch (pagesErr) {}
+
+      return `https://${owner}.github.io/${project.name}/`;
 
     } catch (err) {
       logger.error(`GitHub API upload failed for ${project.name}. Engaging Git CLI fallback...`, err);
       const owner = 'domainexpanders7-svg';
       this.pushViaGitCli(project.name, owner, htmlContent);
-      return `https://github.com/${owner}/${project.name}`;
+      return `https://${owner}.github.io/${project.name}/`;
     }
   }
 
