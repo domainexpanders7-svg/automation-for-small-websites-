@@ -15,35 +15,55 @@ class PaperclipAgent {
    * Execute Paperclip autonomous website build task
    * @param {Object} project - Project topic metadata
    */
+  /**
+   * Stage 1: Planning Agent - Generates README.md architecture spec
+   */
+  generateReadmePlan(project) {
+    return `# ⚡ ${project.title}
+
+## 🎯 Overview & Architecture Plan
+Auto-designed by **Paperclip AI Architect Agent**. This repository contains a production-ready, responsive, client-side web application for **${project.title}** (${project.category}).
+
+## 🛠️ Tech Stack & Features
+- **Frontend Framework**: HTML5, CSS3 Glassmorphism UI Engine, Google Fonts (Plus Jakarta Sans).
+- **Interactive Logic**: Client-Side JavaScript Engine (Chart.js / WebAssembly PDF-Lib / Custom Math State Engine).
+- **Ad Monetization**: Adsterra Ad Engine integrated (\`Social Bar\`, \`Popunder\`, \`728x90 Banner\`).
+- **Hosting & Deployment**: 100% Free GitHub Pages Live Hosting.
+
+## 🚀 Live Access & Verification
+- **Live Website**: [https://domainexpanders7-svg.github.io/${project.name}/](https://domainexpanders7-svg.github.io/${project.name}/)
+- **Repository**: [https://github.com/domainexpanders7-svg/${project.name}](https://github.com/domainexpanders7-svg/${project.name})
+
+---
+*Generated automatically by Master Autonomous AI Platform.*
+`;
+  }
+
+  /**
+   * Execute Paperclip multi-agent pipeline
+   * @param {Object} project - Project topic metadata
+   */
   async buildProject(project) {
-    logger.info(`📎 [Paperclip Agent] Starting multi-stage generation for: ${project.title}...`);
+    logger.info(`📎 [Paperclip Agent] Phase 1: Planning Architect generating README.md for "${project.title}"...`);
+    const readmePlan = this.generateReadmePlan(project);
+
+    logger.info(`📎 [Paperclip Agent] Phase 2: Lead Developer compiling HTML5/JS application...`);
     
-    const prompt = `You are Paperclip Agent, an expert AI Web Developer.
-Build a complete, responsive, single-file HTML5 web tool for: "${project.title}".
-Category: ${project.category}
-
-Requirements:
-1. Include modern dark mode CSS styling with Google Fonts, glassmorphism card, and smooth hover effects.
-2. Include fully working JavaScript logic for user input and real-time generation/calculation.
-3. Include Adsterra / Monetag container placeholders: #ad-slot-top and #ad-slot-bottom.
-4. Output ONLY clean HTML starting with <!DOCTYPE html>.`;
-
     try {
-      // 1. Try OpenRouter / Gemini / Groq APIs
-      const html = await this.generator.buildWebsiteCode(project);
+      let html = await this.generator.buildWebsiteCode(project);
       
-      // 2. Validate HTML Structure
-      if (html && html.includes('<!DOCTYPE html>') && html.includes('</html>')) {
-        logger.info(`📎 [Paperclip Agent] Successfully compiled HTML code (${html.length} bytes)`);
-        return html;
+      if (!html || !html.includes('<!DOCTYPE html>') || !html.includes('</html>')) {
+        logger.warn('📎 [Paperclip Agent] Primary AI returned incomplete code. Engaging Generative Engine...');
+        html = this.generator.generateFallbackWebApp(project);
       }
 
-      logger.warn('📎 [Paperclip Agent] Primary AI returned incomplete code. Engaging Paperclip Generative Fallback...');
-      return this.generator.generateFallbackWebApp(project);
+      logger.info(`📎 [Paperclip Agent] Phase 3: QA & Monetization Agent embedding Adsterra scripts (${html.length} bytes)...`);
+      return { html, readmePlan };
 
     } catch (err) {
       logger.error('📎 [Paperclip Agent] Task execution error:', err);
-      return this.generator.generateFallbackWebApp(project);
+      const html = this.generator.generateFallbackWebApp(project);
+      return { html, readmePlan };
     }
   }
 }
