@@ -282,7 +282,8 @@ class MasterAutonomousEngine {
 
       // 4. Create Repo & Deploy
       const repoUrl = await this.deployToGitHubRepo(project, htmlCode);
-      const liveUrl = `https://${project.name}.pages.dev`;
+      const owner = 'domainexpanders7-svg';
+      const liveUrl = `https://${owner}.github.io/automation-for-small-websites-/dist/${project.name}/index.html`;
 
       // 5. OpenObserve Telemetry Metrics
       const totalTimeMs = Date.now() - cycleStart;
