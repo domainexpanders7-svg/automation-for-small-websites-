@@ -56,6 +56,65 @@ git push -u origin main
 
 ---
 
+---
+
+## 🤖 100% Free Lifetime AI Models Setup
+
+To run the AI agents without spending any money on API fees:
+
+### 1. Google Gemini API (Free Tier - 1,500 Requests/Day)
+1. Go to [aistudio.google.com](https://aistudio.google.com).
+2. Click **Get API Key** -> **Create API Key**.
+3. Copy the key and add it to your `.env` file:
+   ```env
+   GEMINI_API_KEY="your_gemini_api_key_here"
+   ```
+
+### 2. Groq Cloud API (Free Tier - 14,400 Requests/Day)
+1. Go to [console.groq.com](https://console.groq.com).
+2. Click **API Keys** -> **Create API Key**.
+3. Add it to your `.env` file:
+   ```env
+   GROQ_API_KEY="your_groq_api_key_here"
+   ```
+
+---
+
+## 🛠️ AI Toolchain Execution (OpenCode & Kilo)
+
+* **OpenCode / Zen** (For quick features & single-file edits):
+  ```bash
+  opencode
+  ```
+* **Kilo** (For repository-wide multi-file generation & heavy refactoring):
+  ```bash
+  kilo
+  ```
+
+---
+
+## 💰 Adsterra & Monetag Monetization Setup ($5 Bank Payouts)
+
+### Step 1: Register Free Account
+1. Sign up on [Adsterra](https://adsterra.com) or [Monetag](https://monetag.com) (No credit/debit card required).
+2. Click **Add Website** and paste your live `.pages.dev` or `.vercel.app` URL.
+3. Select ad unit type:
+   - **Banner Ad** (728x90 or 300x250)
+   - **Native / Social Bar Ad** (High CPM)
+
+### Step 2: Paste Ad Codes in `index.html`
+1. Copy the generated JavaScript code snippet from Adsterra / Monetag.
+2. Open [index.html](file:///d:/CODE%20JAANI%20CODE/testing%20an%20website%20builder%20automations/index.html).
+3. Paste the code snippet inside `#ad-slot-top` or `#ad-slot-bottom`.
+
+### Step 3: Configure Bank Payouts
+1. Go to **Payments** / **Profile** in your Adsterra / Monetag dashboard.
+2. Select **Bank Transfer / Wire / PayPal**.
+3. Enter your Indian Bank Account Number + IFSC Code.
+4. Earnings automatically transfer once you hit the **$5 (₹400)** threshold!
+
+---
+
 ## 🔄 Daily Workflow for Zero Data Usage
 
 Whenever you want to make changes or add features:
@@ -64,7 +123,7 @@ Whenever you want to make changes or add features:
 
 ```bash
 git add .
-git commit -m "Updated site design"
+git commit -m "Updated site design and ad slots"
 git push
 ```
 

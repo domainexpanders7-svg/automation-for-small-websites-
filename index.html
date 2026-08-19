@@ -144,6 +144,32 @@
       width: 100%;
     }
 
+    /* Ad Container Styling for Adsterra / Monetag */
+    .ad-container {
+      width: 100%;
+      background: rgba(18, 26, 44, 0.4);
+      border: 1px dashed var(--border-color);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 90px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .ad-container .ad-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-blue);
+      margin-bottom: 0.5rem;
+      opacity: 0.8;
+    }
+
     footer {
       padding: 1.5rem;
       text-align: center;
@@ -167,6 +193,13 @@
   </header>
 
   <main>
+    <!-- Top Responsive Ad Container (Adsterra / Monetag 728x90 or Banner) -->
+    <div class="ad-container" id="ad-slot-top">
+      <span class="ad-label">Advertisement</span>
+      <!-- Paste your Adsterra / Monetag Script Code Here -->
+      <p style="font-size: 0.75rem; color: #64748b;">[ Adsterra / Monetag Top Banner Placement Area ]</p>
+    </div>
+
     <section class="hero-banner">
       <h2>Multi-Agent Website Builder Topology</h2>
       <p>Continuous AI-driven software development pipeline integrated with document stores, permission control, secrets management, and automated deployment services.</p>
@@ -206,6 +239,13 @@ flowchart TD
     PAPERCLIP -. optional long running service .-> RENDER[Render Cloud Host]
       </pre>
     </section>
+
+    <!-- Bottom Native Ad Container (Adsterra / Monetag Native or Social Bar) -->
+    <div class="ad-container" id="ad-slot-bottom">
+      <span class="ad-label">Advertisement</span>
+      <!-- Paste your Adsterra / Monetag Native/Social Bar Code Here -->
+      <p style="font-size: 0.75rem; color: #64748b;">[ Adsterra / Monetag Native / Social Bar Placement Area ]</p>
+    </div>
   </main>
 
   <footer>
