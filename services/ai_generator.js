@@ -517,10 +517,10 @@ Requirement:
 4. Return ONLY valid executable HTML code starting with <!DOCTYPE html>.`;
 
     try {
-      if (this.geminiKey) {
-        return await this.generateWithGemini(prompt);
-      } else if (this.groqKey) {
+      if (this.groqKey) {
         return await this.generateWithGroq(prompt);
+      } else if (this.geminiKey) {
+        return await this.generateWithGemini(prompt);
       } else {
         return this.generateFallbackWebApp(project);
       }
