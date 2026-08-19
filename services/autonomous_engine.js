@@ -316,7 +316,7 @@ class MasterAutonomousEngine {
   /**
    * Step 5: Send Telegram Alert
    */
-  async notifyTelegram(project, liveUrl) {
+  async notifyTelegram(project, liveUrl, vercelUrl = null) {
     if (!this.telegramToken || !this.telegramChatId) {
       logger.warn('ℹ️ [Engine] Telegram credentials not configured. Skipping Telegram message.');
       return;
@@ -324,7 +324,8 @@ class MasterAutonomousEngine {
 
     const text = `🤖 *Autonomous AI Website Builder Alert*\n\n` +
                  `✨ *New Tool Deployed*: ${project.title}\n` +
-                 `🔗 *Live URL*: ${liveUrl}\n` +
+                 `🚀 *Vercel Cloud URL*: ${vercelUrl || 'Deploying...'}\n` +
+                 `🌐 *GitHub Pages URL*: ${liveUrl}\n` +
                  `📊 *Category*: ${project.category}\n` +
                  `🛡️ *Observability*: Logged to OpenObserve\n\n` +
                  `🧪 *Testing Instructions*:\n` +
@@ -368,10 +369,11 @@ class MasterAutonomousEngine {
       // 3. Save Files locally
       const savedPath = await this.saveProjectFiles(project.name, htmlContent, architecture, readme, sitemap, robots);
 
-      // 4. Create Repo & Deploy
+      // 4. Create Repo & Deploy to GitHub & Vercel
       const repoUrl = await this.deployToGitHubRepo(project, htmlContent);
+      const vercelUrl = await this.deployToVercel(project, htmlContent);
       const owner = 'domainexpanders7-svg';
-      const liveUrl = `https://${owner}.github.io/${project.name}/`;
+      const liveUrl = vercelUrl || `https://${owner}.github.io/${project.name}/`;
 
       // 5. OpenObserve Telemetry Metrics
       const totalTimeMs = Date.now() - cycleStart;
@@ -379,13 +381,14 @@ class MasterAutonomousEngine {
       logger.info(`✨ [Engine] Cycle completed successfully in ${totalTimeMs}ms!`, {
         project: project.name,
         live_url: liveUrl,
+        vercel_url: vercelUrl,
         saved_path: savedPath
       });
 
       // 6. Telegram Alert
-      await this.notifyTelegram(project, liveUrl);
+      await this.notifyTelegram(project, liveUrl, vercelUrl);
 
-      return { success: true, project, liveUrl, totalTimeMs };
+      return { success: true, project, liveUrl, vercelUrl, totalTimeMs };
 
     } catch (err) {
       logger.error('💥 [Engine] Fatal error in autonomous execution cycle', err);
