@@ -128,10 +128,33 @@ class MasterAutonomousEngine {
       const owner = repoData.owner?.login || 'domainexpanders7-svg';
       logger.info(`🎉 [Engine] GitHub Repository created: ${repoData.html_url || `https://github.com/${owner}/${project.name}`}`);
 
-      // 2. Upload index.html directly into GitHub Repo via Contents API
+      // 2. Fetch existing SHA if file exists to avoid 422 conflict
+      let fileSha = null;
+      try {
+        const getFileRes = await fetch(`https://api.github.com/repos/${owner}/${project.name}/contents/index.html`, {
+          headers: {
+            'Authorization': `token ${this.githubToken}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        if (getFileRes.ok) {
+          const fileData = await getFileRes.json();
+          fileSha = fileData.sha;
+        }
+      } catch (shaErr) {}
+
+      // 3. Upload / Update index.html directly into GitHub Repo via Contents API
       logger.info(`Uploading generated index.html code to ${owner}/${project.name}...`);
       const base64Content = Buffer.from(htmlContent || '').toString('base64');
       
+      const filePayload = {
+        message: 'Auto-commit: Integrated HTML5 code and ad containers',
+        content: base64Content
+      };
+      if (fileSha) {
+        filePayload.sha = fileSha;
+      }
+
       const fileResponse = await fetch(`https://api.github.com/repos/${owner}/${project.name}/contents/index.html`, {
         method: 'PUT',
         headers: {
@@ -139,10 +162,7 @@ class MasterAutonomousEngine {
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          message: 'Auto-commit: Integrated HTML5 code and ad containers',
-          content: base64Content
-        })
+        body: JSON.stringify(filePayload)
       });
 
       if (fileResponse.ok) {
