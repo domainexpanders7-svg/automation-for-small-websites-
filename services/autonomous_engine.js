@@ -31,6 +31,7 @@ class MasterAutonomousEngine {
     this.generator = new AIGenerator();
     this.paperclip = new PaperclipAgent();
     this.githubToken = process.env.GITHUB_TOKEN || '';
+    this.vercelToken = process.env.VERCEL_TOKEN || '';
     this.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
     this.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
     this.builtProjects = new Set();
@@ -40,6 +41,46 @@ class MasterAutonomousEngine {
     if (fs.existsSync(distPath)) {
       const folders = fs.readdirSync(distPath);
       folders.forEach(f => this.builtProjects.add(f));
+    }
+  }
+
+  /**
+   * Deploy to Vercel via Vercel REST API
+   */
+  async deployToVercel(project, htmlContent) {
+    if (!this.vercelToken) {
+      logger.info('ℹ️ [Vercel Agent] VERCEL_TOKEN not set in .env. Skipping Vercel deployment.');
+      return null;
+    }
+
+    logger.info(`☁️ [Vercel Agent] Deploying "${project.name}" directly to Vercel...`);
+    try {
+      const response = await fetch('https://api.vercel.com/v13/deployments', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.vercelToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: project.name,
+          files: [
+            { file: 'index.html', data: htmlContent }
+          ],
+          projectSettings: { framework: null }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Vercel API error HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const vercelLiveUrl = `https://${data.url}`;
+      logger.info(`🎉 [Vercel Agent] Successfully deployed to Vercel: ${vercelLiveUrl}`);
+      return vercelLiveUrl;
+    } catch (err) {
+      logger.error('❌ [Vercel Agent] Deployment error:', err);
+      return null;
     }
   }
 
