@@ -4,7 +4,7 @@
   "description": "Autonomous AI Web Builder & Generator Engine with OpenObserve Observability & Multi-Repo GitHub Deployment",
   "main": "services/autonomous_engine.js",
   "scripts": {
-    "start": "node services/autonomous_engine.js",
+    "start": "node services/daemon.js",
     "daemon": "node services/daemon.js",
     "start:daemon": "node services/daemon.js",
     "start:automation": "node services/autonomous_engine.js",
