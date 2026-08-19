@@ -62,7 +62,9 @@ class MasterAutonomousEngine {
     logger.info(`🤖 [Engine] Engaging Paperclip Agent for "${project.title}"...`);
     const startTime = Date.now();
 
-    let htmlContent = await this.paperclip.buildProject(project);
+    const { html, readmePlan } = await this.paperclip.buildProject(project);
+
+    let htmlContent = html;
 
     // Self-Healing & Code Quality Verification Loop
     if (!htmlContent || !htmlContent.includes('<!DOCTYPE html>') || !htmlContent.includes('</html>')) {
@@ -74,13 +76,13 @@ class MasterAutonomousEngine {
     logger.info(`✅ [Engine] Paperclip Agent build succeeded in ${durationMs}ms`, { code_length: htmlContent.length });
     logger.metric('code_generation_duration_ms', durationMs, 'ms');
 
-    return htmlContent;
+    return { htmlContent, readmePlan };
   }
 
   /**
    * Step 3: Save Output Files locally to dist/<project-name>/
    */
-  async saveProjectFiles(projectName, htmlContent) {
+  async saveProjectFiles(projectName, htmlContent, readmePlan) {
     const distDir = path.join(__dirname, '..', 'dist', projectName);
     if (!fs.existsSync(distDir)) {
       fs.mkdirSync(distDir, { recursive: true });
@@ -88,6 +90,10 @@ class MasterAutonomousEngine {
 
     const indexPath = path.join(distDir, 'index.html');
     fs.writeFileSync(indexPath, htmlContent, 'utf8');
+
+    if (readmePlan) {
+      fs.writeFileSync(path.join(distDir, 'README.md'), readmePlan, 'utf8');
+    }
 
     logger.info(`📁 [Engine] Staged deployable project at: ${indexPath}`, { file_size_bytes: htmlContent.length });
     return indexPath;
@@ -275,13 +281,13 @@ class MasterAutonomousEngine {
       const project = await this.selectTrendingTopic();
 
       // 2. Generate Code & Self-Heal
-      const htmlCode = await this.generateAndValidateCode(project);
+      const { htmlContent, readmePlan } = await this.generateAndValidateCode(project);
 
       // 3. Save Files locally
-      const savedPath = await this.saveProjectFiles(project.name, htmlCode);
+      const savedPath = await this.saveProjectFiles(project.name, htmlContent, readmePlan);
 
       // 4. Create Repo & Deploy
-      const repoUrl = await this.deployToGitHubRepo(project, htmlCode);
+      const repoUrl = await this.deployToGitHubRepo(project, htmlContent);
       const owner = 'domainexpanders7-svg';
       const liveUrl = `https://${owner}.github.io/${project.name}/`;
 
