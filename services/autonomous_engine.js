@@ -89,10 +89,10 @@ class MasterAutonomousEngine {
    * Step 2: Code Generation & Self-Healing HTML Validation
    */
   async generateAndValidateCode(project) {
-    logger.info(`🤖 [Engine] Engaging Paperclip 5-Agent Autonomous Pipeline for "${project.title}"...`);
+    logger.info(`🧠 Agent 1 & 3: Initiating 4-Agent Pipeline for "${project.title}"...`);
     const startTime = Date.now();
 
-    const { html, readme, sitemap, robots } = await this.paperclip.buildProject(project);
+    const { html, architecture, readme, sitemap, robots } = await this.paperclip.buildProject(project);
 
     let htmlContent = html;
 
@@ -103,16 +103,16 @@ class MasterAutonomousEngine {
     }
 
     const durationMs = Date.now() - startTime;
-    logger.info(`✅ [Engine] Paperclip Agent build succeeded in ${durationMs}ms`, { code_length: htmlContent.length });
+    logger.info(`✅ Paperclip 4-Agent Build succeeded in ${durationMs}ms`, { code_length: htmlContent.length });
     logger.metric('code_generation_duration_ms', durationMs, 'ms');
 
-    return { htmlContent, readme, sitemap, robots };
+    return { htmlContent, architecture, readme, sitemap, robots };
   }
 
   /**
    * Step 3: Save Output Files locally to dist/<project-name>/
    */
-  async saveProjectFiles(projectName, htmlContent, readme, sitemap, robots) {
+  async saveProjectFiles(projectName, htmlContent, architecture, readme, sitemap, robots) {
     const distDir = path.join(__dirname, '..', 'dist', projectName);
     if (!fs.existsSync(distDir)) {
       fs.mkdirSync(distDir, { recursive: true });
@@ -121,11 +121,22 @@ class MasterAutonomousEngine {
     const indexPath = path.join(distDir, 'index.html');
     fs.writeFileSync(indexPath, htmlContent, 'utf8');
 
+    if (architecture) fs.writeFileSync(path.join(distDir, 'ARCHITECTURE.md'), architecture, 'utf8');
     if (readme) fs.writeFileSync(path.join(distDir, 'README.md'), readme, 'utf8');
     if (sitemap) fs.writeFileSync(path.join(distDir, 'sitemap.xml'), sitemap, 'utf8');
     if (robots) fs.writeFileSync(path.join(distDir, 'robots.txt'), robots, 'utf8');
 
-    logger.info(`📁 [Engine] Staged deployable project files at: ${distDir}`, { file_size_bytes: htmlContent.length });
+    const packageJson = {
+      name: projectName,
+      version: "1.0.0",
+      description: `${projectName} - Powered by Master Autonomous AI Platform`,
+      main: "index.html",
+      scripts: { "start": "npx serve ." },
+      dependencies: { "serve": "^14.2.0" }
+    };
+    fs.writeFileSync(path.join(distDir, 'package.json'), JSON.stringify(packageJson, null, 2), 'utf8');
+
+    logger.info(`📁 Staged deployable project files at: ${distDir}`, { file_size_bytes: htmlContent.length });
     return indexPath;
   }
 
@@ -311,10 +322,10 @@ class MasterAutonomousEngine {
       const project = await this.selectTrendingTopic();
 
       // 2. Generate Code & Self-Heal
-      const { htmlContent, readme, sitemap, robots } = await this.generateAndValidateCode(project);
+      const { htmlContent, architecture, readme, sitemap, robots } = await this.generateAndValidateCode(project);
 
       // 3. Save Files locally
-      const savedPath = await this.saveProjectFiles(project.name, htmlContent, readme, sitemap, robots);
+      const savedPath = await this.saveProjectFiles(project.name, htmlContent, architecture, readme, sitemap, robots);
 
       // 4. Create Repo & Deploy
       const repoUrl = await this.deployToGitHubRepo(project, htmlContent);
