@@ -48,6 +48,11 @@ class AutonomousDaemon {
   }
 
   async runSingleCycle() {
+    if (this.telegramBot && this.telegramBot.isPaused) {
+      logger.info(`⏸️ [Daemon] Engine is currently PAUSED via Telegram /stop command. Skipping build cycle.`);
+      return;
+    }
+
     this.cycleCount++;
     logger.info(`=================================================================`);
     logger.info(`🔄 [Daemon] Executing Autonomous AI Engine Cycle #${this.cycleCount}`);
