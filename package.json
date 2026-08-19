@@ -1,0 +1,24 @@
+{
+  "name": "autonomous-ai-website-builder",
+  "version": "1.0.0",
+  "description": "Autonomous AI Web Builder & Generator Engine with OpenObserve Observability & Multi-Repo GitHub Deployment",
+  "main": "services/autonomous_engine.js",
+  "scripts": {
+    "start": "node services/autonomous_engine.js",
+    "daemon": "node services/daemon.js",
+    "start:daemon": "node services/daemon.js",
+    "start:automation": "node services/autonomous_engine.js",
+    "test:observability": "node services/observability.js",
+    "test:runner": "node services/automation_runner.js"
+  },
+  "keywords": [
+    "ai-website-builder",
+    "autonomous-agent",
+    "openobserve",
+    "cloudflare-pages",
+    "monetization"
+  ],
+  "author": "Autonomous Platform",
+  "license": "MIT",
+  "dependencies": {}
+}
