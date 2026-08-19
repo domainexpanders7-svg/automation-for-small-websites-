@@ -89,10 +89,10 @@ class MasterAutonomousEngine {
    * Step 2: Code Generation & Self-Healing HTML Validation
    */
   async generateAndValidateCode(project) {
-    logger.info(`🤖 [Engine] Engaging Paperclip Agent for "${project.title}"...`);
+    logger.info(`🤖 [Engine] Engaging Paperclip 5-Agent Autonomous Pipeline for "${project.title}"...`);
     const startTime = Date.now();
 
-    const { html, readmePlan } = await this.paperclip.buildProject(project);
+    const { html, readme, sitemap, robots } = await this.paperclip.buildProject(project);
 
     let htmlContent = html;
 
@@ -106,13 +106,13 @@ class MasterAutonomousEngine {
     logger.info(`✅ [Engine] Paperclip Agent build succeeded in ${durationMs}ms`, { code_length: htmlContent.length });
     logger.metric('code_generation_duration_ms', durationMs, 'ms');
 
-    return { htmlContent, readmePlan };
+    return { htmlContent, readme, sitemap, robots };
   }
 
   /**
    * Step 3: Save Output Files locally to dist/<project-name>/
    */
-  async saveProjectFiles(projectName, htmlContent, readmePlan) {
+  async saveProjectFiles(projectName, htmlContent, readme, sitemap, robots) {
     const distDir = path.join(__dirname, '..', 'dist', projectName);
     if (!fs.existsSync(distDir)) {
       fs.mkdirSync(distDir, { recursive: true });
@@ -121,11 +121,11 @@ class MasterAutonomousEngine {
     const indexPath = path.join(distDir, 'index.html');
     fs.writeFileSync(indexPath, htmlContent, 'utf8');
 
-    if (readmePlan) {
-      fs.writeFileSync(path.join(distDir, 'README.md'), readmePlan, 'utf8');
-    }
+    if (readme) fs.writeFileSync(path.join(distDir, 'README.md'), readme, 'utf8');
+    if (sitemap) fs.writeFileSync(path.join(distDir, 'sitemap.xml'), sitemap, 'utf8');
+    if (robots) fs.writeFileSync(path.join(distDir, 'robots.txt'), robots, 'utf8');
 
-    logger.info(`📁 [Engine] Staged deployable project at: ${indexPath}`, { file_size_bytes: htmlContent.length });
+    logger.info(`📁 [Engine] Staged deployable project files at: ${distDir}`, { file_size_bytes: htmlContent.length });
     return indexPath;
   }
 
@@ -311,10 +311,10 @@ class MasterAutonomousEngine {
       const project = await this.selectTrendingTopic();
 
       // 2. Generate Code & Self-Heal
-      const { htmlContent, readmePlan } = await this.generateAndValidateCode(project);
+      const { htmlContent, readme, sitemap, robots } = await this.generateAndValidateCode(project);
 
       // 3. Save Files locally
-      const savedPath = await this.saveProjectFiles(project.name, htmlContent, readmePlan);
+      const savedPath = await this.saveProjectFiles(project.name, htmlContent, readme, sitemap, robots);
 
       // 4. Create Repo & Deploy
       const repoUrl = await this.deployToGitHubRepo(project, htmlContent);
