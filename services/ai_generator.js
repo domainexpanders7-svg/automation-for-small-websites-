@@ -38,10 +38,10 @@ class AIGenerator {
   }
 
   /**
-   * Calls Groq Cloud API to generate web app HTML
+   * Calls Groq Cloud API to generate web app HTML using OpenAI 120B Model
    */
   async generateWithGroq(prompt) {
-    logger.info('Invoking Groq Cloud API (Llama-3.3-70B)...');
+    logger.info('Invoking Groq Cloud API (openai/gpt-oss-120b)...');
     const url = 'https://api.groq.com/openai/v1/chat/completions';
 
     const response = await fetch(url, {
@@ -51,7 +51,7 @@ class AIGenerator {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [{ role: 'user', content: prompt }]
       })
     });
