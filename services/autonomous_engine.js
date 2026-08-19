@@ -33,24 +33,54 @@ class MasterAutonomousEngine {
     this.githubToken = process.env.GITHUB_TOKEN || '';
     this.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
     this.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
+    this.builtProjects = new Set();
+    
+    // Auto-discover already built dist folders
+    const distPath = path.join(__dirname, '..', 'dist');
+    if (fs.existsSync(distPath)) {
+      const folders = fs.readdirSync(distPath);
+      folders.forEach(f => this.builtProjects.add(f));
+    }
   }
 
   /**
-   * Step 1: Autonomous Trend Research
+   * Step 1: Autonomous Trend Research (Excludes already built projects)
    */
   async selectTrendingTopic() {
-    logger.info('🔍 [Engine] Researching high-demand micro-web tool trends...');
+    logger.info('🔍 [Engine] Researching high-demand micro-web tool trends for unbuilt projects...');
 
     const database = [
       { name: 'ai-ats-resume-scanner', title: 'AI ATS Resume & Keyword Optimizer', category: 'Career Tools' },
       { name: 'free-gst-calculator-in', title: 'Instant GST & Invoice Calculator India', category: 'Finance' },
       { name: 'social-bio-generator', title: 'Viral AI Instagram Bio Generator', category: 'AI Tools' },
       { name: 'pdf-compress-merge-tool', title: 'Free PDF Compressor & File Merger', category: 'Productivity' },
-      { name: 'crypto-profit-calculator', title: 'Crypto ROI & Profit Calculator', category: 'Fintech' }
+      { name: 'crypto-profit-calculator', title: 'Crypto ROI & Profit Calculator', category: 'Fintech' },
+      { name: 'qr-code-wifi-generator', title: 'Free WiFi & URL QR Code Generator Pro', category: 'Utilities' },
+      { name: 'word-character-counter-seo', title: 'SEO Word & Character Counter Tool', category: 'SEO Tools' },
+      { name: 'jpg-png-webp-converter', title: 'WebP to PNG & JPG Image Converter Online', category: 'Graphics' },
+      { name: 'typing-speed-tester-online', title: 'WPM Typing Speed Test & Certificate', category: 'Education' },
+      { name: 'passwords-generator-secure', title: 'Strong Password Generator & Vault', category: 'Security' },
+      { name: 'json-formatter-validator-pro', title: 'JSON Formatter & Schema Validator Pro', category: 'Developer Tools' }
     ];
 
-    const project = database[Math.floor(Math.random() * database.length)];
-    logger.info(`✨ [Engine] Selected Project Idea: "${project.title}"`, { project });
+    // Filter out already built tools
+    const available = database.filter(p => !this.builtProjects.has(p.name));
+    
+    let project;
+    if (available.length > 0) {
+      project = available[Math.floor(Math.random() * available.length)];
+    } else {
+      // Generate dynamic new tool if all database projects are built
+      const timestamp = Date.now().toString().slice(-4);
+      project = {
+        name: `micro-ai-tool-${timestamp}`,
+        title: `AI Power Tool ${timestamp}`,
+        category: 'Utilities'
+      };
+    }
+
+    this.builtProjects.add(project.name);
+    logger.info(`✨ [Engine] Selected Brand New Unbuilt Project Idea: "${project.title}"`, { project });
     logger.metric('autonomous_projects_researched', 1, 'count', { category: project.category });
     return project;
   }
