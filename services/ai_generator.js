@@ -117,8 +117,9 @@ class AIGenerator {
   generateFallbackWebApp(project) {
     logger.info(`Using High-Quality Generative Engine for: ${project.title}`);
     
-    const adScriptTop = process.env.ADSTERRA_SCRIPT || process.env.MONETAG_SCRIPT || '<p style="font-size: 0.75rem; color: #64748b;">[ Adsterra / Monetag Responsive Banner ]</p>';
-    const adScriptBottom = process.env.ADSTERRA_NATIVE_SCRIPT || process.env.MONETAG_SCRIPT || '<p style="font-size: 0.75rem; color: #64748b;">[ Adsterra / Monetag Native / Social Bar ]</p>';
+    const defaultAdsterraScript = `<script src="https://pl30928168.effectivecpmnetwork.com/35/4b/49/354b499b924f3693363b131cb601391a.js"></script><script src="https://pl30928169.effectivecpmnetwork.com/ae/16/8e/ae168eb52b8a2fe524b807295ff0b66d.js"></script><script>atOptions = {'key' : 'fdc7957d7f23c1d3b63ef3ddb7c977cd','format' : 'iframe','height' : 90,'width' : 728,'params' : {}};</script><script src="https://www.highperformanceformat.com/fdc7957d7f23c1d3b63ef3ddb7c977cd/invoke.js"></script>`;
+    const adScriptTop = process.env.ADSTERRA_SCRIPT || process.env.MONETAG_SCRIPT || defaultAdsterraScript;
+    const adScriptBottom = process.env.ADSTERRA_NATIVE_SCRIPT || process.env.MONETAG_SCRIPT || defaultAdsterraScript;
 
     return `<!DOCTYPE html>
 <html lang="en">
