@@ -383,7 +383,35 @@ class AIGenerator {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${project.title} - Free Online Tool</title>
-  <meta name="description" content="Use ${project.title} online for free. Instant, secure, and easy to use.">
+  <meta name="description" content="Use ${project.title} online for free. Instant, secure, high-performance browser web tool.">
+  <meta name="keywords" content="${project.title}, free online tool, ${project.category}, web utility">
+
+  <!-- OpenGraph & Twitter Card SEO Snippets for Viral Traffic -->
+  <meta property="og:title" content="${project.title} - Free Online Tool">
+  <meta property="og:description" content="Use ${project.title} online for free. Instant, secure, and mobile optimized.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://domainexpanders7-svg.github.io/${project.name}/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${project.title}">
+  <meta name="twitter:description" content="Use ${project.title} online for free. Instant & secure.">
+
+  <!-- Google Structured Data JSON-LD Schema for Top Search Ranking -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "${project.title}",
+    "url": "https://domainexpanders7-svg.github.io/${project.name}/",
+    "applicationCategory": "${project.category}",
+    "operatingSystem": "All",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
