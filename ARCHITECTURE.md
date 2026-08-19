@@ -33,7 +33,7 @@ flowchart TD
 
     SCHEDULER[Background Scheduler] --> PAPERCLIP
     SCHEDULER --> RESEARCH[Research Engine]
-    SCHEDULER --> MONITOR[Monitoring & Observability]
+    SCHEDULER --> MONITOR[Monitoring & OpenObserve Telemetry]
     SCHEDULER --> ANALYTICS[Analytics Pipeline]
     SCHEDULER --> GROWTH[Growth & Auto-Scaling]
 
