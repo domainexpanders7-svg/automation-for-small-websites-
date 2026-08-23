@@ -26,12 +26,14 @@ const { logger } = require('./observability');
 const AIGenerator = require('./ai_generator');
 const PaperclipAgent = require('./paperclip_agent');
 const OpenCodeAgent = require('./opencode_agent');
+const KiloAgent = require('./kilo_agent');
 
 class MasterAutonomousEngine {
   constructor() {
     this.generator = new AIGenerator();
     this.paperclip = new PaperclipAgent();
     this.opencodeAgent = new OpenCodeAgent('opencode/big-pickle');
+    this.kiloAgent = new KiloAgent('kilo-code-v1');
     this.githubToken = process.env.GITHUB_TOKEN || '';
     this.vercelToken = process.env.VERCEL_TOKEN || '';
     this.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -130,37 +132,52 @@ class MasterAutonomousEngine {
 
   /**
    * Step 2: Code Generation & Self-Healing HTML Validation
+   * Development: OpenCode Agent (Fallback: Kilo Agent)
+   * QA & Testing: Kilo Agent + Paperclip VM Sandbox
    */
   async generateAndValidateCode(project) {
-    logger.info(`🧠 Agent 1 & 3: Initiating Agile Pipeline for "${project.title}"...`);
+    logger.info(`🧠 [Pipeline] Initiating OpenCode + KiloCode Autonomous Pipeline for "${project.title}"...`);
     const startTime = Date.now();
 
     let htmlContent = null;
     const projectDistDir = path.join(__dirname, '..', 'dist', project.name);
 
-    if (this.opencodeAgent.isAvailable) {
-      logger.info(`🚀 [Engine] Utilizing Server-side OpenCode Agent (Model: ${this.opencodeAgent.model}) for "${project.title}"...`);
+    // Stage 1: Development using OpenCode Agent (Fallback to Kilo Agent if OpenCode fails)
+    logger.info(`🚀 [Dev Pipeline] Primary Website Generator: OpenCode Agent (Model: ${this.opencodeAgent.model})...`);
+    try {
       const opencodeRes = await this.opencodeAgent.generateWebsite(project, projectDistDir);
-      if (opencodeRes.success) {
+      if (opencodeRes && opencodeRes.success && opencodeRes.htmlContent) {
         htmlContent = opencodeRes.htmlContent;
-        await this.opencodeAgent.auditAndTestWebsite(projectDistDir);
+        logger.info(`✅ [Dev Pipeline] Website generated successfully by OpenCode Agent.`);
+      }
+    } catch (err) {
+      logger.warn(`⚠️ [Dev Pipeline] OpenCode Agent execution encountered error: ${err.message}. Triggering Kilo Agent fallback...`);
+    }
+
+    if (!htmlContent) {
+      logger.info(`🔄 [Dev Pipeline] Triggering Fallback Website Generator: Kilo Agent (Model: ${this.kiloAgent.model})...`);
+      const kiloRes = await this.kiloAgent.generateWebsite(project, projectDistDir);
+      if (kiloRes && kiloRes.success && kiloRes.htmlContent) {
+        htmlContent = kiloRes.htmlContent;
+        logger.info(`✅ [Dev Pipeline] Website generated successfully by Kilo Agent fallback.`);
       }
     }
 
-    const { html, architecture, readme, sitemap, robots, testResults } = await this.paperclip.buildProject(project);
+    // Stage 2: QA Audit & Testing using Kilo Agent
+    logger.info(`🧪 [QA & Testing Pipeline] Auditor & Test Pass Runner: Kilo Agent (Model: ${this.kiloAgent.model})...`);
+    htmlContent = await this.kiloAgent.runQAAuditAndTest(projectDistDir, htmlContent, project);
 
-    if (!htmlContent) {
-      htmlContent = html;
-    }
+    // Stage 3: Architecture & Paperclip VM Sandbox Verification
+    const { architecture, readme, sitemap, robots, testResults } = await this.paperclip.buildProject(project, htmlContent);
 
-    // Self-Healing & Code Quality Verification Loop
+    // Self-Healing Repair Fallback
     if (!htmlContent || !htmlContent.includes('<!DOCTYPE html>') || !htmlContent.includes('</html>')) {
       logger.warn('⚠️ [Engine] Validation warning: Generated code failed HTML structure check. Initiating Self-Healing Repair...');
       htmlContent = this.generator.generateFallbackWebApp(project);
     }
 
     const durationMs = Date.now() - startTime;
-    logger.info(`✅ Build pipeline succeeded in ${durationMs}ms`, { code_length: htmlContent.length });
+    logger.info(`✅ Build & QA pipeline succeeded in ${durationMs}ms`, { code_length: htmlContent ? htmlContent.length : 0 });
     logger.metric('code_generation_duration_ms', durationMs, 'ms');
 
     return { htmlContent, architecture, readme, sitemap, robots, testResults };
