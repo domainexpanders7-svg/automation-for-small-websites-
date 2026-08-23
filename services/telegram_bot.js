@@ -6,8 +6,8 @@
 const MasterAutonomousEngine = require('./autonomous_engine');
 const { logger } = require('./observability');
 
-const token = process.env.TELEGRAM_BOT_TOKEN || '8845184460:AAE7wYe_cbHWdlqsqoUcAV_FFnKdMN0VxBg';
-const chatId = process.env.TELEGRAM_CHAT_ID || '1911702294';
+const token = process.env.TELEGRAM_BOT_TOKEN || '';
+const chatId = process.env.TELEGRAM_CHAT_ID || '';
 
 class TelegramBotController {
   constructor() {
