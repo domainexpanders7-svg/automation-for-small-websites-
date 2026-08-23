@@ -534,10 +534,113 @@ class AIGenerator {
   }
 
   /**
+   * Master Multi-File Full-Stack Code Generation Function
+   * Generates complete directory structure with isolated components, CSS, and JS logic
+   */
+  async generateMultiFileFullStackApp(project, targetDir) {
+    const fs = require('fs');
+    const path = require('path');
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const srcDir = path.join(targetDir, 'src');
+    const compDir = path.join(srcDir, 'components');
+    if (!fs.existsSync(compDir)) {
+      fs.mkdirSync(compDir, { recursive: true });
+    }
+
+    const indexHtml = this.generateFallbackWebApp(project);
+    const stylesCss = `/* Modern Dark Glassmorphism Design Tokens */
+:root {
+  --bg-dark: #0f172a;
+  --panel-bg: rgba(30, 41, 59, 0.7);
+  --border-glow: rgba(56, 189, 248, 0.2);
+  --text-main: #f8fafc;
+  --accent: #38bdf8;
+  --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+}
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  min-height: 100vh;
+}
+.glass-card {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}`;
+
+    const appJs = `/**
+ * ${project.title} - Main Business Logic & Interaction Controller
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 App initialized: ${project.title}');
+});`;
+
+    const headerJs = `/** Header Component */
+export function renderHeader(title) {
+  return '<header class="glass-card"><h1>' + title + '</h1></header>';
+}`;
+
+    const mainJs = `/** Main Component */
+export function renderMain() {
+  return '<main class="glass-card"><p>Full-Stack Autonomous Web App Active</p></main>';
+}`;
+
+    const packageJson = {
+      name: project.name,
+      version: '1.0.0',
+      description: `${project.title} - Full-Stack Application`,
+      main: 'index.html',
+      scripts: { start: 'npx serve .' },
+      dependencies: { serve: '^14.2.0' }
+    };
+
+    fs.writeFileSync(path.join(targetDir, 'index.html'), indexHtml, 'utf8');
+    fs.writeFileSync(path.join(srcDir, 'styles.css'), stylesCss, 'utf8');
+    fs.writeFileSync(path.join(srcDir, 'app.js'), appJs, 'utf8');
+    fs.writeFileSync(path.join(compDir, 'Header.js'), headerJs, 'utf8');
+    fs.writeFileSync(path.join(compDir, 'Main.js'), mainJs, 'utf8');
+    fs.writeFileSync(path.join(targetDir, 'package.json'), JSON.stringify(packageJson, null, 2), 'utf8');
+
+    return {
+      indexHtml,
+      files: ['index.html', 'src/styles.css', 'src/app.js', 'src/components/Header.js', 'src/components/Main.js', 'package.json']
+    };
+  }
+
+  /**
+   * Provides full CLI Command Specs for Groq Master Orchestrator
+   */
+  getAgentCLICommandsSpec() {
+    return {
+      opencode: {
+        defaultModel: 'opencode/big-pickle',
+        command: 'opencode run -m opencode/big-pickle "<prompt>"',
+        debug: 'opencode debug',
+        useCase: 'Primary full-stack website development & initial scaffolding'
+      },
+      kilo: {
+        defaultModel: 'autofree',
+        command: 'kilo run -m autofree "<prompt>"',
+        audit: 'kilo audit',
+        useCase: 'Secondary fallback website development, repository refactoring, & QA error repair loop'
+      }
+    };
+  }
+
+  /**
    * Master Code Generation Function
    */
   async buildWebsiteCode(project) {
-    const prompt = `You are an expert Frontend Web Developer. Build a complete, responsive, single-file HTML5 web application for: "${project.title}".
+    const prompt = `You are an expert Senior Full-Stack Developer. Build a complete, responsive, multi-file web application for: "${project.title}".
 Requirement:
 1. Include inline CSS with modern dark glassmorphism styling, Google Fonts, and smooth transitions.
 2. Include fully functional JavaScript interactivity.
