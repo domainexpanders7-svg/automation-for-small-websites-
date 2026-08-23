@@ -334,7 +334,38 @@ class MasterAutonomousEngine {
   }
 
   /**
-   * Stage 7: Send Telegram Notification
+   * Real-time Proactive Telegram Error Alert & Action Notification
+   */
+  async notifyTelegramError(stageName, errorMessage, plannedAction) {
+    if (!this.telegramToken || !this.telegramChatId) {
+      logger.warn('ℹ️ [Engine] Telegram credentials not configured. Skipping Telegram error alert.');
+      return;
+    }
+
+    const text = `⚠️ *Autonomous Engine Alert: Error Encountered*\n\n` +
+                 `📍 *Stage*: ${stageName}\n` +
+                 `💥 *Error*: \`${errorMessage}\`\n\n` +
+                 `🛠️ *Groq Proactive Action*: ${plannedAction}\n` +
+                 `🤖 *Agents*: Dispatched Kilo Code Debug Mode (\`--mode debug\`) & OpenCode`;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${this.telegramToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: this.telegramChatId,
+          text: text,
+          parse_mode: 'Markdown'
+        })
+      });
+      logger.info(`📱 [Engine] Proactive Telegram error alert sent for stage: ${stageName}`);
+    } catch (err) {
+      logger.error('Failed sending Telegram error alert', err);
+    }
+  }
+
+  /**
+   * Stage 7: Send Telegram Alert
    */
   async notifyTelegram(project, liveUrl, vercelUrl = null, testResults = null, liveVerification = null) {
     if (!this.telegramToken || !this.telegramChatId) {
