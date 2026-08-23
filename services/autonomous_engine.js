@@ -34,6 +34,7 @@ const AIGenerator = require('./ai_generator');
 const PaperclipAgent = require('./paperclip_agent');
 const OpenCodeAgent = require('./opencode_agent');
 const KiloAgent = require('./kilo_agent');
+const AgentReachSearch = require('./agent_reach');
 
 class MasterAutonomousEngine {
   constructor() {
@@ -41,6 +42,7 @@ class MasterAutonomousEngine {
     this.paperclip = new PaperclipAgent();
     this.opencodeAgent = new OpenCodeAgent('opencode/big-pickle');
     this.kiloAgent = new KiloAgent('autofree');
+    this.agentReach = new AgentReachSearch();
     this.githubToken = process.env.GITHUB_TOKEN || '';
     this.vercelToken = process.env.VERCEL_TOKEN || '';
     this.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -118,10 +120,16 @@ class MasterAutonomousEngine {
   }
 
   /**
-   * Stage 1: Requirements & Trend Research
+   * Stage 1: Requirements & Trend Research (Powered by Agent-Reach Exa AI Web Search)
    */
   async selectTrendingTopic() {
-    logger.info('🔍 [Stage 1] Researching high-demand micro-web tool trends for unbuilt projects...');
+    logger.info('🔍 [Stage 1] Executing Agent-Reach Web Search (Exa AI) for viral web tool trends...');
+    try {
+      const searchResults = await this.agentReach.performWebSearch('top viral micro web application tools 2026', 3);
+      logger.info(`✨ [Stage 1] Agent-Reach Exa AI Web Search returned ${searchResults.length} live trend topics.`);
+    } catch (searchErr) {
+      logger.warn(`⚠️ [Stage 1] Agent-Reach search warning: ${searchErr.message}`);
+    }
 
     const database = [
       { name: 'ai-ats-resume-scanner', title: 'AI ATS Resume & Keyword Optimizer', category: 'Career Tools' },
