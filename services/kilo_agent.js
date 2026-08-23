@@ -41,8 +41,8 @@ class KiloAgent {
       return { success: false, error: 'Kilo CLI not installed on server' };
     }
     return new Promise((resolve) => {
-      const command = `kilo run -m ${this.model} --mode ${mode} "${prompt.replace(/"/g, '\\"')}"`;
-      logger.info(`🤖 [Kilo Agent Mode: ${mode}] Command: ${command} (CWD: ${cwd})`);
+      const command = `kilo run -m ${this.model} --agent ${mode} "${prompt.replace(/"/g, '\\"')}"`;
+      logger.info(`🤖 [Kilo Agent: ${mode}] Command: ${command} (CWD: ${cwd})`);
 
       exec(command, { cwd, timeout: timeoutMs }, (error, stdout, stderr) => {
         if (error) {
