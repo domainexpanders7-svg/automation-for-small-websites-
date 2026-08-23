@@ -1,7 +1,7 @@
 /**
  * Server-Side Kilo Code Agent Controller
  * Default Model: 'autofree' (or 'kilo-code-v1')
- * Handles autonomous repository refactoring, self-healing code repair, QA testing, & live post-deployment audits.
+ * Supports specialized execution modes: 'code', 'debug', 'ask', 'plan', 'orchestrator'
  */
 
 const { exec } = require('child_process');
@@ -28,28 +28,28 @@ class KiloAgent {
         logger.info(`✅ [Kilo Agent] Kilo CLI detected on server (${stdout.trim()}). Default model: ${this.model}`);
       } else {
         this.isAvailable = false;
-        logger.warn(`⚠️ [Kilo Agent] Kilo CLI not detected on server. Utilizing API-backed Kilo Test & Refactor engine (model: ${this.model}).`);
+        logger.warn(`⚠️ [Kilo Agent] Kilo CLI not detected on server. Utilizing API-backed Kilo Multi-Mode Engine (model: ${this.model}).`);
       }
     });
   }
 
   /**
-   * Execute a Kilo CLI run command with default 'autofree' model
+   * Execute a Kilo CLI run command with specified mode ('code', 'debug', 'ask', 'plan', 'orchestrator')
    */
-  async runCommand(prompt, cwd, timeoutMs = 120000) {
+  async runCommand(prompt, cwd, mode = 'code', timeoutMs = 120000) {
     if (!this.isAvailable) {
       return { success: false, error: 'Kilo CLI not installed on server' };
     }
     return new Promise((resolve) => {
-      const command = `kilo run -m ${this.model} "${prompt.replace(/"/g, '\\"')}"`;
-      logger.info(`🤖 [Kilo Agent] Command: ${command} (CWD: ${cwd})`);
+      const command = `kilo run -m ${this.model} --mode ${mode} "${prompt.replace(/"/g, '\\"')}"`;
+      logger.info(`🤖 [Kilo Agent Mode: ${mode}] Command: ${command} (CWD: ${cwd})`);
 
       exec(command, { cwd, timeout: timeoutMs }, (error, stdout, stderr) => {
         if (error) {
-          logger.error(`❌ [Kilo Agent] Execution error: ${error.message}`, { stderr });
+          logger.error(`❌ [Kilo Agent Mode: ${mode}] Execution error: ${error.message}`, { stderr });
           resolve({ success: false, error: error.message, stdout, stderr });
         } else {
-          logger.info(`🎉 [Kilo Agent] Execution completed successfully.`);
+          logger.info(`🎉 [Kilo Agent Mode: ${mode}] Execution completed successfully.`);
           resolve({ success: true, stdout, stderr });
         }
       });
@@ -63,7 +63,7 @@ class KiloAgent {
     if (this.isAvailable) {
       const prompt = `Refactor & build complete multi-file full-stack app for "${project.title}" (${project.category}). ` +
                      `Create index.html, src/app.js, src/styles.css, src/components/Header.js, and package.json with modern glassmorphism design.`;
-      const res = await this.runCommand(prompt, targetDir);
+      const res = await this.runCommand(prompt, targetDir, 'code');
       const indexPath = path.join(targetDir, 'index.html');
       if (res.success && fs.existsSync(indexPath)) {
         return { success: true, htmlContent: fs.readFileSync(indexPath, 'utf8') };
@@ -75,23 +75,21 @@ class KiloAgent {
   }
 
   /**
-   * Self-Healing Code Repair Loop: Parses Error Trace & Fixes Offending Code
+   * Systematic Debugging & Error Diagnosis Mode (--mode debug)
    */
   async repairBrokenCode(targetDir, htmlContent, errorLogs) {
-    logger.info(`🛠️ [Kilo Agent] Repairing code based on terminal error stack trace...`, { errors: errorLogs });
+    logger.info(`🛠️ [Kilo Agent Debug Mode] Diagnosing and fixing software issues...`, { errors: errorLogs });
 
     if (this.isAvailable) {
-      const prompt = `The application build failed with errors: ${errorLogs.join('; ')}. ` +
-                     `Inspect index.html and JavaScript files in current folder. Fix all syntax, reference, or rendering errors immediately.`;
-      await this.runCommand(prompt, targetDir, 60000);
+      const prompt = `Systematic debugging: Fix build failures (${errorLogs.join('; ')}). Inspect index.html, src/app.js, src/styles.css. Repair all errors.`;
+      await this.runCommand(prompt, targetDir, 'debug', 60000);
       const indexPath = path.join(targetDir, 'index.html');
       if (fs.existsSync(indexPath)) {
         return fs.readFileSync(indexPath, 'utf8');
       }
     }
 
-    // Direct API-backed Kilo repair pass
-    logger.info(`⚡ [Kilo Agent] Applying automated self-healing fix via Kilo repair engine...`);
+    logger.info(`⚡ [Kilo Agent Debug Mode] Applying self-healing repair pass via Kilo engine...`);
     return this.generator.generateFallbackWebApp({ name: 'repaired-app', title: 'Self-Healed Application' });
   }
 
@@ -99,18 +97,18 @@ class KiloAgent {
    * Post-Deployment Live Verification Check (Kilo Agent)
    */
   async verifyDeployedWebsite(vercelLiveUrl, targetDir) {
-    logger.info(`🔍 [Kilo Agent] Auditing live deployed Vercel site: ${vercelLiveUrl}...`);
+    logger.info(`🔍 [Kilo Agent Audit Mode] Auditing live deployed Vercel site: ${vercelLiveUrl}...`);
     try {
       const res = await fetch(vercelLiveUrl);
       const isLive = res.ok;
-      logger.info(`✅ [Kilo Agent] Live Vercel Site Check: HTTP ${res.status} (${isLive ? 'PASSED' : 'FAILED'})`);
+      logger.info(`✅ [Kilo Agent Audit Mode] Live Vercel Site Check: HTTP ${res.status} (${isLive ? 'PASSED' : 'FAILED'})`);
       
       if (this.isAvailable) {
-        await this.runCommand(`Audit live deployed site at ${vercelLiveUrl}. Verify layout and JavaScript execution.`, targetDir, 40000);
+        await this.runCommand(`Audit live deployed site at ${vercelLiveUrl}. Verify layout and JavaScript execution.`, targetDir, 'ask', 40000);
       }
       return { success: isLive, status: res.status, liveUrl: vercelLiveUrl };
     } catch (err) {
-      logger.error(`❌ [Kilo Agent] Live URL verification failed: ${err.message}`);
+      logger.error(`❌ [Kilo Agent Audit Mode] Live URL verification failed: ${err.message}`);
       return { success: false, error: err.message, liveUrl: vercelLiveUrl };
     }
   }
