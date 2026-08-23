@@ -1,6 +1,7 @@
 /**
  * Server-Side OpenCode Agent Controller
- * Utilizes OpenCode CLI (or OpenCode AI API engine) with 'opencode/big-pickle' model for autonomous website generation & QA testing on deployed servers.
+ * Default Model: 'opencode/big-pickle'
+ * Handles autonomous multi-file full-stack website generation, CLI command execution, & live post-deployment QA verification.
  */
 
 const { exec } = require('child_process');
@@ -27,13 +28,13 @@ class OpenCodeAgent {
         logger.info(`✅ [OpenCode Agent] OpenCode CLI detected on server (${stdout.trim()}). Default model: ${this.model}`);
       } else {
         this.isAvailable = false;
-        logger.warn('⚠️ [OpenCode Agent] OpenCode CLI not detected on server. Utilizing API-backed OpenCode engine.');
+        logger.warn(`⚠️ [OpenCode Agent] OpenCode CLI not detected on server. Utilizing API-backed OpenCode engine (model: ${this.model}).`);
       }
     });
   }
 
   /**
-   * Execute an OpenCode run command asynchronously with timeout
+   * Execute an OpenCode CLI run command with default 'opencode/big-pickle' model
    */
   async runCommand(prompt, cwd, timeoutMs = 120000) {
     if (!this.isAvailable) {
@@ -41,11 +42,11 @@ class OpenCodeAgent {
     }
     return new Promise((resolve) => {
       const command = `opencode run -m ${this.model} "${prompt.replace(/"/g, '\\"')}"`;
-      logger.info(`🤖 [OpenCode Agent] Running on server: ${command} (CWD: ${cwd})`);
+      logger.info(`🤖 [OpenCode Agent] Command: ${command} (CWD: ${cwd})`);
 
       exec(command, { cwd, timeout: timeoutMs }, (error, stdout, stderr) => {
         if (error) {
-          logger.error(`❌ [OpenCode Agent] Command failed: ${error.message}`, { stderr });
+          logger.error(`❌ [OpenCode Agent] Execution error: ${error.message}`, { stderr });
           resolve({ success: false, error: error.message, stdout, stderr });
         } else {
           logger.info(`🎉 [OpenCode Agent] Execution completed successfully.`);
@@ -56,7 +57,7 @@ class OpenCodeAgent {
   }
 
   /**
-   * Generate Full Website Project using OpenCode Agent (big-pickle model)
+   * Generate Full-Stack Multi-File Website Project (OpenCode Agent)
    */
   async generateWebsite(project, targetDir) {
     if (!fs.existsSync(targetDir)) {
@@ -64,9 +65,9 @@ class OpenCodeAgent {
     }
 
     if (this.isAvailable) {
-      const prompt = `Build a complete, single-file HTML5 web application for "${project.title}" (${project.category}). ` +
-                     `Create index.html with inline modern CSS and JS. Implement modern glassmorphism design, responsive layout, ` +
-                     `Adsterra ad containers, and full interactive features. Do not use external framework dependencies.`;
+      const prompt = `Build a complete multi-file full-stack web application for "${project.title}" (${project.category}). ` +
+                     `Generate index.html, src/app.js, src/styles.css, src/components/Header.js, src/components/Main.js, and package.json. ` +
+                     `Use modern glassmorphism dark UI design system, Adsterra monetization slots, and responsive layout.`;
 
       const result = await this.runCommand(prompt, targetDir);
 
@@ -77,25 +78,29 @@ class OpenCodeAgent {
       }
     }
 
-    logger.info(`⚡ [OpenCode Agent] Generating web app via OpenCode API engine (model: ${this.model})...`);
-    const htmlContent = await this.generator.generateFullWebApp(project);
-    const indexPath = path.join(targetDir, 'index.html');
-    fs.writeFileSync(indexPath, htmlContent, 'utf8');
-    return { success: true, htmlContent };
+    logger.info(`⚡ [OpenCode Agent] Generating multi-file full-stack web app via Groq-backed OpenCode engine (${this.model})...`);
+    const multiFileApp = await this.generator.generateMultiFileFullStackApp(project, targetDir);
+    return { success: true, htmlContent: multiFileApp.indexHtml, files: multiFileApp.files };
   }
 
   /**
-   * Audit & Run QA Test Pass on Deployed Server using OpenCode Agent
+   * Post-Deployment Live Verification Check (OpenCode Agent)
    */
-  async auditAndTestWebsite(targetDir) {
-    if (this.isAvailable) {
-      const prompt = `Audit index.html in the current folder. Check for syntax errors, missing closing tags, ` +
-                     `ensure Adsterra script containers are present, and verify mobile responsiveness. Refactor if needed.`;
-
-      const result = await this.runCommand(prompt, targetDir, 60000);
-      return result;
+  async verifyDeployedWebsite(vercelLiveUrl, targetDir) {
+    logger.info(`🔍 [OpenCode Agent] Auditing live deployed Vercel site: ${vercelLiveUrl}...`);
+    try {
+      const res = await fetch(vercelLiveUrl);
+      const isLive = res.ok;
+      logger.info(`✅ [OpenCode Agent] Live Vercel Site Check: HTTP ${res.status} (${isLive ? 'SUCCESS' : 'FAILED'})`);
+      
+      if (this.isAvailable) {
+        await this.runCommand(`Verify live deployed website at ${vercelLiveUrl}. Ensure main features and CSS load cleanly.`, targetDir, 40000);
+      }
+      return { success: isLive, status: res.status, liveUrl: vercelLiveUrl };
+    } catch (err) {
+      logger.error(`❌ [OpenCode Agent] Live URL verification failed: ${err.message}`);
+      return { success: false, error: err.message, liveUrl: vercelLiveUrl };
     }
-    return { success: true, message: 'OpenCode API audit completed.' };
   }
 }
 
