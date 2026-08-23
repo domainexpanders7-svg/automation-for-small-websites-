@@ -25,11 +25,13 @@ if (fs.existsSync(envPath)) {
 const { logger } = require('./observability');
 const AIGenerator = require('./ai_generator');
 const PaperclipAgent = require('./paperclip_agent');
+const OpenCodeAgent = require('./opencode_agent');
 
 class MasterAutonomousEngine {
   constructor() {
     this.generator = new AIGenerator();
     this.paperclip = new PaperclipAgent();
+    this.opencodeAgent = new OpenCodeAgent('opencode/big-pickle');
     this.githubToken = process.env.GITHUB_TOKEN || '';
     this.vercelToken = process.env.VERCEL_TOKEN || '';
     this.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -133,9 +135,23 @@ class MasterAutonomousEngine {
     logger.info(`🧠 Agent 1 & 3: Initiating Agile Pipeline for "${project.title}"...`);
     const startTime = Date.now();
 
+    let htmlContent = null;
+    const projectDistDir = path.join(__dirname, '..', 'dist', project.name);
+
+    if (this.opencodeAgent.isAvailable) {
+      logger.info(`🚀 [Engine] Utilizing Server-side OpenCode Agent (Model: ${this.opencodeAgent.model}) for "${project.title}"...`);
+      const opencodeRes = await this.opencodeAgent.generateWebsite(project, projectDistDir);
+      if (opencodeRes.success) {
+        htmlContent = opencodeRes.htmlContent;
+        await this.opencodeAgent.auditAndTestWebsite(projectDistDir);
+      }
+    }
+
     const { html, architecture, readme, sitemap, robots, testResults } = await this.paperclip.buildProject(project);
 
-    let htmlContent = html;
+    if (!htmlContent) {
+      htmlContent = html;
+    }
 
     // Self-Healing & Code Quality Verification Loop
     if (!htmlContent || !htmlContent.includes('<!DOCTYPE html>') || !htmlContent.includes('</html>')) {
@@ -144,7 +160,7 @@ class MasterAutonomousEngine {
     }
 
     const durationMs = Date.now() - startTime;
-    logger.info(`✅ Paperclip 5-Agent Build succeeded in ${durationMs}ms`, { code_length: htmlContent.length });
+    logger.info(`✅ Build pipeline succeeded in ${durationMs}ms`, { code_length: htmlContent.length });
     logger.metric('code_generation_duration_ms', durationMs, 'ms');
 
     return { htmlContent, architecture, readme, sitemap, robots, testResults };
