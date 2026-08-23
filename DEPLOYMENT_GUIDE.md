@@ -14,6 +14,21 @@ This guide details how to host your project live on **Cloudflare Pages** or **Ve
 
 ---
 
+## 🤖 Server-Side OpenCode (`opencode/big-pickle`) Integration
+
+To run OpenCode directly on your deployed backend server (e.g. Render, Docker, or Linux VPS) for website building and testing:
+
+1. **Install OpenCode CLI on the server**:
+   ```bash
+   npm install -g opencode
+   ```
+2. **Configure Default Model**:
+   The engine automatically runs `opencode run -m opencode/big-pickle` on the server host.
+3. **Environment Setup**:
+   Ensure API key environment variables (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`) are set in your server dashboard.
+
+---
+
 ## 🚀 Option 1: Cloudflare Pages Setup (Recommended)
 
 ### Step 1: Create a Free GitHub Repository
