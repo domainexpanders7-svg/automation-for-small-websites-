@@ -62,7 +62,7 @@ class TelegramBotController {
                         `1. Ingest request & map multi-file architecture.\n` +
                         `2. Dispatch OpenCode (\`opencode/big-pickle\`) for full-stack scaffolding.\n` +
                         `3. Run KiloCode Debug Engine (\`autofree --mode debug\`) for code audit.\n` +
-                        `4. Deploy multi-file bundle to Vercel Cloud.\n\n` +
+                        `4. Deploy multi-file bundle to Render.\n\n` +
                         `⚡ *Status*: Executing proposed action now...`;
 
     await this.sendTelegramMessage(proposalMsg, incomingChatId);
@@ -82,8 +82,8 @@ class TelegramBotController {
                            `📊 *Before & After Summary*:\n` +
                            `🔴 *BEFORE*: ${beforeState}\n` +
                            `🟢 *AFTER*: ${afterState}\n\n` +
-                           `🚀 *Live Vercel Link*: ${result.vercelUrl || result.liveUrl}\n` +
-                           `🌐 *GitHub Repo*: ${result.liveUrl}\n` +
+                           `🚀 *Live Render Link*: ${result.renderUrl || result.liveUrl}\n` +
+                            `🌐 *Render URL*: ${result.liveUrl}\n` +
                            `🧪 *QA Status*: Verified by OpenCode + KiloCode Debug & VM Sandbox`;
 
         await this.sendTelegramMessage(summaryMsg, incomingChatId);
