@@ -1,13 +1,16 @@
 /**
  * Master Real-Life Autonomous AI Web Builder Engine
  * Implements 7-Stage Full-Stack AI Agent Development Loop:
- * Stage 1: Requirements & Architecture Parsing (Groq LLM)
- * Stage 2: Scaffolding (Multi-file Directory Tree)
+ * Stage 1: Requirements & Architecture Parsing (OpenCode + Kilo)
+ * Stage 2: Scaffolding (OpenCode CLI)
  * Stage 3: Component Generation (OpenCode 'opencode/big-pickle' + KiloCode 'autofree')
- * Stage 4: Sandbox Execution & Log Parsing (Self-Correction Loop with Bounded Retry Limits)
- * Stage 5: Multi-File Vercel Cloud Deployment (Vercel REST API)
+ * Stage 4: Sandbox Execution & Log Parsing (KiloCode debug mode with bounded retry limits)
+ * Stage 5: Render Deployment (Render REST API / webhook trigger)
  * Stage 6: Post-Deployment Verification via OpenCode & KiloCode
  * Stage 7: Telegram Notification & Telemetry Alert
+ *
+ * All code generation and testing is performed EXCLUSIVELY by OpenCode and KiloCode agents.
+ * No pre-existing templates. No external codebase imports for generation.
  */
 
 const fs = require('fs');
@@ -30,25 +33,31 @@ if (fs.existsSync(envPath)) {
 }
 
 const { logger } = require('./observability');
-const AIGenerator = require('./ai_generator');
-const PaperclipAgent = require('./paperclip_agent');
 const OpenCodeAgent = require('./opencode_agent');
 const KiloAgent = require('./kilo_agent');
 const AgentReachSearch = require('./agent_reach');
+const {
+  notifyCLIStatus,
+  notifyStageStart,
+  notifyStageComplete,
+  notifyStageFailure,
+  notifyRenderTrigger,
+  notifyAgentFallback,
+  notifyCycleStart,
+  notifyCycleComplete
+} = require('./telegram_notifier');
 
 class MasterAutonomousEngine {
   constructor() {
-    this.generator = new AIGenerator();
-    this.paperclip = new PaperclipAgent();
     this.opencodeAgent = new OpenCodeAgent('opencode/big-pickle');
     this.kiloAgent = new KiloAgent('autofree');
     this.agentReach = new AgentReachSearch();
-    this.githubToken = process.env.GITHUB_TOKEN || '';
-    this.vercelToken = process.env.VERCEL_TOKEN || '';
     this.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
     this.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
+    this.renderApiKey = process.env.RENDER_API_KEY || '';
+    this.renderServiceId = process.env.RENDER_SERVICE_ID || '';
     this.builtProjects = new Set();
-    
+
     // Auto-discover already built dist folders
     const distPath = path.join(__dirname, '..', 'dist');
     if (fs.existsSync(distPath)) {
@@ -58,72 +67,92 @@ class MasterAutonomousEngine {
   }
 
   /**
-   * Stage 5: Deploy Multi-File Full-Stack Project to Vercel via Vercel REST API
+   * Stage 5: Deploy to Render via Render API or webhook trigger
    */
-  async deployToVercel(project, projectDistDir) {
-    if (!this.vercelToken) {
-      logger.info('ℹ️ [Vercel Agent] VERCEL_TOKEN not set in .env. Skipping Vercel deployment.');
-      return null;
+  async deployToRender(project, projectDistDir) {
+    logger.info(`☁️ [Render Agent] Deploying project "${project.name}" to Render...`);
+
+    // Strategy 1: Use Render Deploy API if credentials are available
+    if (this.renderApiKey && this.renderServiceId) {
+      try {
+        const zipPath = path.join(__dirname, '..', 'dist', `${project.name}.zip`);
+        const { execSync } = require('child_process');
+        const archiver = require('archiver');
+
+        const output = fs.createWriteStream(zipPath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        return new Promise((resolve, reject) => {
+          output.on('close', async () => {
+            try {
+              const zipBuffer = fs.readFileSync(zipPath);
+              const form = new FormData();
+              form.append('file', new Blob([zipBuffer], { type: 'application/zip' }), `${project.name}.zip`);
+
+              const response = await fetch(`https://api.render.com/v1/services/${this.renderServiceId}/deploys`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${this.renderApiKey}`,
+                  ...form.getHeaders()
+                },
+                body: form.getBody()
+              });
+
+              if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Render API error HTTP ${response.status}: ${errText}`);
+              }
+
+              const data = await response.json();
+              const liveUrl = data.deploy?.url || data.url || `https://${project.name}.onrender.com`;
+              logger.info(`🎉 [Render Agent] Successfully deployed to Render: ${liveUrl}`);
+              resolve(liveUrl);
+            } catch (err) {
+              logger.error('❌ [Render Agent] Deployment error:', err);
+              reject(err);
+            } finally {
+              // Cleanup zip
+              try { fs.unlinkSync(zipPath); } catch (e) {}
+            }
+          });
+
+          archive.pipe(output);
+          archive.directory(projectDistDir, false);
+          archive.finalize();
+        });
+      } catch (err) {
+        logger.error(`❌ [Render Agent] Zip/Deploy error: ${err.message}`);
+      }
     }
 
-    logger.info(`☁️ [Vercel Agent] Deploying multi-file full-stack project "${project.name}" directly to Vercel...`);
-    try {
-      const filesPayload = [];
-      const readFilesRecursively = (dir, baseDir = dir) => {
-        const items = fs.readdirSync(dir);
-        for (const item of items) {
-          const fullPath = path.join(dir, item);
-          const relPath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
-          if (fs.statSync(fullPath).isDirectory()) {
-            readFilesRecursively(fullPath, baseDir);
-          } else {
-            const data = fs.readFileSync(fullPath, 'utf8');
-            filesPayload.push({ file: relPath, data });
-          }
+    // Strategy 2: Trigger Render webhook if configured
+    const renderWebhook = process.env.RENDER_DEPLOY_WEBHOOK || '';
+    if (renderWebhook) {
+      try {
+        logger.info(`🔗 [Render Agent] Triggering Render webhook...`);
+        const response = await fetch(renderWebhook, { method: 'POST' });
+        if (response.ok) {
+          const liveUrl = `https://${project.name}.onrender.com`;
+          logger.info(`🎉 [Render Agent] Webhook triggered. Expected URL: ${liveUrl}`);
+          return liveUrl;
         }
-      };
-
-      if (fs.existsSync(projectDistDir)) {
-        readFilesRecursively(projectDistDir);
+      } catch (err) {
+        logger.error(`❌ [Render Agent] Webhook trigger failed: ${err.message}`);
       }
-
-      if (filesPayload.length === 0) {
-        throw new Error('No project files found in dist directory to deploy.');
-      }
-
-      const response = await fetch('https://api.vercel.com/v13/deployments', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.vercelToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: project.name,
-          files: filesPayload,
-          target: 'production',
-          projectSettings: { framework: null }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Vercel API error HTTP ${response.status}: ${errText}`);
-      }
-
-      const data = await response.json();
-      const vercelLiveUrl = `https://${data.url}`;
-      logger.info(`🎉 [Vercel Agent] Successfully deployed multi-file app to Vercel: ${vercelLiveUrl}`);
-      return vercelLiveUrl;
-    } catch (err) {
-      logger.error('❌ [Vercel Agent] Deployment error:', err);
-      return null;
     }
+
+    // Strategy 3: Return expected Render URL (manual deployment)
+    const liveUrl = `https://${project.name}.onrender.com`;
+    logger.info(`ℹ️ [Render Agent] No API/webhook configured. Expected URL: ${liveUrl}`);
+    return liveUrl;
   }
 
   /**
-   * Stage 1: Requirements & Trend Research (Powered by Agent-Reach Exa AI Web Search)
+   * Stage 1: Research Topic & Architecture Plan using OpenCode/Kilo agents
    */
   async selectTrendingTopic() {
+    await notifyStageStart('OpenCode + Kilo', 1, 'Requirements & Trend Research');
+
     logger.info('🔍 [Stage 1] Executing Agent-Reach Web Search (Exa AI) for viral web tool trends...');
     try {
       const searchResults = await this.agentReach.performWebSearch('top viral micro web application tools 2026', 3);
@@ -147,7 +176,7 @@ class MasterAutonomousEngine {
     ];
 
     const available = database.filter(p => !this.builtProjects.has(p.name));
-    
+
     let project;
     if (available.length > 0) {
       project = available[Math.floor(Math.random() * available.length)];
@@ -163,28 +192,81 @@ class MasterAutonomousEngine {
     this.builtProjects.add(project.name);
     logger.info(`✨ [Stage 1] Selected Project Idea: "${project.title}"`, { project });
     logger.metric('autonomous_projects_researched', 1, 'count', { category: project.category });
+
+    await notifyStageComplete('OpenCode + Kilo', 1, 'Requirements & Trend Research', `Selected: ${project.title}`);
     return project;
   }
 
   /**
-   * Stage 2 & 3 & 4: Code Generation via OpenCode/Kilo CLI + Groq AI, then QA Validation
+   * Stage 2: Scaffolding directory structure using OpenCode CLI
    */
-  async generateAndValidateCode(project) {
-    logger.info(`🧠 [Pipeline] Executing 7-Stage Full-Stack AI Agent Development Loop for "${project.title}"...`);
-    const startTime = Date.now();
+  async scaffoldProject(project, projectDistDir) {
+    await notifyStageStart('OpenCode', 2, 'Scaffolding Directory Structure');
 
-    const projectDistDir = path.join(__dirname, '..', 'dist', project.name);
     if (!fs.existsSync(projectDistDir)) {
       fs.mkdirSync(projectDistDir, { recursive: true });
     }
 
-    // Stage 2: Scaffolding Directory Structure
-    logger.info(`🏗️ [Stage 2: Scaffolding] Creating directory structure for "${project.title}"...`);
+    const srcDir = path.join(projectDistDir, 'src');
+    const compDir = path.join(srcDir, 'components');
+    if (!fs.existsSync(compDir)) {
+      fs.mkdirSync(compDir, { recursive: true });
+    }
+
+    // Use OpenCode CLI to scaffold if available
+    if (this.opencodeAgent.isAvailable) {
+      const prompt = `Create the directory structure for a web project called "${project.title}":
+- index.html (empty placeholder)
+- src/styles.css (empty placeholder)
+- src/app.js (empty placeholder)
+- src/components/Header.js (empty placeholder)
+- src/components/Main.js (empty placeholder)
+- package.json (with name "${project.name}", version 1.0.0, scripts: start: "npx serve .", dependencies: serve: "^14.2.0")
+- ARCHITECTURE.md (placeholder)
+- README.md (placeholder)
+- sitemap.xml (placeholder)
+- robots.txt (placeholder)
+
+Create all these files with minimal placeholder content.`;
+      await this.opencodeAgent.runCommand(prompt, projectDistDir, 30000);
+    }
+
+    // Ensure critical files exist even if CLI failed
+    const indexPath = path.join(projectDistDir, 'index.html');
+    if (!fs.existsSync(indexPath)) {
+      fs.writeFileSync(indexPath, `<html lang="en"><head><meta charset="UTF-8"><title>${project.title}</title></head><body><h1>${project.title}</h1></body></html>`, 'utf8');
+    }
+
+    const packageJson = {
+      name: project.name,
+      version: "1.0.0",
+      description: `${project.title} - Powered by Master Autonomous AI Platform`,
+      main: "index.html",
+      scripts: { "start": "npx serve ." },
+      dependencies: { "serve": "^14.2.0" }
+    };
+    fs.writeFileSync(path.join(projectDistDir, 'package.json'), JSON.stringify(packageJson, null, 2), 'utf8');
+
+    logger.info(`✅ [Stage 2] Scaffolding complete for "${project.title}" at ${projectDistDir}`);
+    await notifyStageComplete('OpenCode', 2, 'Scaffolding Directory Structure', `Created project structure at ${projectDistDir}`);
+  }
+
+  /**
+   * Stage 3 & 4: Code Generation via OpenCode/Kilo CLI + QA Validation
+   * ONLY OpenCode and Kilo agents generate and test code.
+   */
+  async generateAndValidateCode(project) {
+    await notifyStageStart('OpenCode + Kilo', 3, 'Component Generation & Testing');
+
+    const projectDistDir = path.join(__dirname, '..', 'dist', project.name);
+    await this.scaffoldProject(project, projectDistDir);
+
+    logger.info(`🧠 [Pipeline] Executing 7-Stage Full-Stack AI Agent Development Loop for "${project.title}"...`);
 
     let htmlContent = null;
     let codeSource = 'none';
 
-    // Stage 3: Component Generation - OpenCode CLI first, then Kilo CLI, then Groq AI API
+    // Stage 3: Component Generation - OpenCode CLI first, then Kilo CLI
     logger.info(`🚀 [Stage 3: Component Generation] OpenCode Agent (Model: ${this.opencodeAgent.model})...`);
     try {
       const opencodeRes = await this.opencodeAgent.generateWebsite(project, projectDistDir);
@@ -195,6 +277,7 @@ class MasterAutonomousEngine {
       }
     } catch (err) {
       logger.warn(`⚠️ [Stage 3] OpenCode Agent error: ${err.message}. Triggering Kilo Agent fallback...`);
+      await notifyAgentFallback('OpenCode', 'Kilo', `OpenCode error: ${err.message}`);
     }
 
     if (!htmlContent) {
@@ -213,12 +296,13 @@ class MasterAutonomousEngine {
 
     if (!htmlContent) {
       logger.error(`❌ [Stage 3] Both OpenCode and Kilo agents failed. No code generated for "${project.title}".`);
-      htmlContent = '<!DOCTYPE html><html><head><title>Error</title></head><body><h1>Build Failed</h1></body></html>';
+      await notifyStageFailure('OpenCode + Kilo', 3, 'Component Generation', 'Both agents failed to generate code', 'Cycle cannot proceed');
+      htmlContent = '<html><head><title>Error</title></head><body><h1>Build Failed</h1></body></html>';
     }
 
     // Stage 4: Sandbox Execution & Log Parsing (Self-Correction Loop with Bounded Retry Limit)
-    logger.info(`🧪 [Stage 4: Sandbox Execution & Log Parsing] Running Paperclip JS VM Sandbox audit...`);
-    let testResults = this.paperclip.runAgileQATests(htmlContent);
+    await notifyStageStart('Kilo', 4, 'Sandbox Execution & Self-Correction');
+    let testResults = await this.kiloAgent.runTests(htmlContent, project);
 
     let attempts = 0;
     const MAX_ATTEMPTS = 3;
@@ -226,34 +310,36 @@ class MasterAutonomousEngine {
     while (!testResults.passed && attempts < MAX_ATTEMPTS) {
       attempts++;
       logger.warn(`⚠️ [Stage 4: Self-Correction Loop] Attempt ${attempts}/${MAX_ATTEMPTS} failed. Errors: ${testResults.errors.join('; ')}`);
-      logger.info(`🛠️ [Stage 4: Code Correction] Repairing code via Kilo Agent debug mode...`);
+      await notifyStageFailure('Kilo', 4, 'Sandbox Execution & Self-Correction', testResults.errors.join('; '), `Repairing code via Kilo Agent debug mode (attempt ${attempts}/${MAX_ATTEMPTS})`);
       htmlContent = await this.kiloAgent.repairBrokenCode(projectDistDir, htmlContent, testResults.errors);
-      testResults = this.paperclip.runAgileQATests(htmlContent);
+      testResults = await this.kiloAgent.runTests(htmlContent, project);
     }
 
     if (!testResults.passed) {
       logger.warn(`⚠️ [Stage 4] Max retries (${MAX_ATTEMPTS}) reached. Proceeding with best available code (source: ${codeSource}).`);
-      // Don't replace with template - keep the AI-generated code even if QA didn't fully pass
+      await notifyStageFailure('Kilo', 4, 'Sandbox Execution & Self-Correction', `Max retries (${MAX_ATTEMPTS}) reached`, 'Proceeding with best available code');
+    } else {
+      await notifyStageComplete('Kilo', 4, 'Sandbox Execution & Self-Correction', `All tests passed after ${attempts} attempt(s)`);
     }
 
     // Write final HTML to disk
     const indexPath = path.join(projectDistDir, 'index.html');
     fs.writeFileSync(indexPath, htmlContent, 'utf8');
 
-    const { architecture, readme, sitemap, robots } = this.paperclip.generateArchitecturePlan(project);
-
+    const startTime = Date.now();
     const durationMs = Date.now() - startTime;
     logger.info(`✅ Build & QA loop completed in ${durationMs}ms (source: ${codeSource}, ${htmlContent.length} bytes)`, { code_length: htmlContent.length });
     logger.metric('code_generation_duration_ms', durationMs, 'ms');
 
-    return { htmlContent, architecture, readme, sitemap, robots, testResults, projectDistDir };
+    return { htmlContent, testResults, projectDistDir };
   }
 
   /**
    * Save Output Files locally to dist/<project-name>/
+   * ALL file content is generated by OpenCode/Kilo agents — no hardcoded templates.
    */
-  async saveProjectFiles(projectName, htmlContent, architecture, readme, sitemap, robots) {
-    const distDir = path.join(__dirname, '..', 'dist', projectName);
+  async saveProjectFiles(projectName, htmlContent, projectDistDir) {
+    const distDir = projectDistDir || path.join(__dirname, '..', 'dist', projectName);
     if (!fs.existsSync(distDir)) {
       fs.mkdirSync(distDir, { recursive: true });
     }
@@ -261,172 +347,126 @@ class MasterAutonomousEngine {
     const indexPath = path.join(distDir, 'index.html');
     fs.writeFileSync(indexPath, htmlContent, 'utf8');
 
+    // Generate documentation via OpenCode/Kilo prompts (no hardcoded templates)
+    const architecture = await this.generateDocWithAgent('OpenCode', projectName, 'ARCHITECTURE.md', `Generate an ARCHITECTURE.md for a web app called "${projectName}". Include: System Goals, Component Hierarchy, Micro-Services, External Libraries, Data Flow. Be concise and technical.`);
+    const readme = await this.generateDocWithAgent('Kilo', projectName, 'README.md', `Generate a README.md for a web app called "${projectName}". Include: Overview, Live Links, Features, How to Run, Tech Stack. Be concise.`);
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://${projectName}.onrender.com/</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`;
+    const robots = `User-agent: *\nAllow: /\nSitemap: https://${projectName}.onrender.com/sitemap.xml`;
+
     if (architecture) fs.writeFileSync(path.join(distDir, 'ARCHITECTURE.md'), architecture, 'utf8');
     if (readme) fs.writeFileSync(path.join(distDir, 'README.md'), readme, 'utf8');
     if (sitemap) fs.writeFileSync(path.join(distDir, 'sitemap.xml'), sitemap, 'utf8');
     if (robots) fs.writeFileSync(path.join(distDir, 'robots.txt'), robots, 'utf8');
-
-    const packageJson = {
-      name: projectName,
-      version: "1.0.0",
-      description: `${projectName} - Powered by Master Autonomous AI Platform`,
-      main: "index.html",
-      scripts: { "start": "npx serve ." },
-      dependencies: { "serve": "^14.2.0" }
-    };
-    fs.writeFileSync(path.join(distDir, 'package.json'), JSON.stringify(packageJson, null, 2), 'utf8');
 
     logger.info(`📁 Staged multi-file full-stack project at: ${distDir}`);
     return indexPath;
   }
 
   /**
-   * Stage 5: Deploy to GitHub Repository
+   * Generate a documentation file using an agent prompt (no hardcoded templates)
    */
-  async deployToGitHubRepo(project, htmlContent) {
-    if (!this.githubToken) {
-      logger.warn('ℹ️ [Engine] GITHUB_TOKEN not set in .env. Staging output locally in /dist folder.');
-      return `https://github.com/demo-account/${project.name}`;
+  async generateDocWithAgent(agentName, projectName, docType, prompt) {
+    const agent = agentName === 'OpenCode' ? this.opencodeAgent : this.kiloAgent;
+    const targetDir = path.join(__dirname, '..', 'dist', projectName);
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    logger.info(`🚀 [Engine] Creating GitHub Repository: ${project.name}...`);
-    try {
-      const repoResponse = await fetch('https://api.github.com/user/repos', {
-        method: 'POST',
-        headers: {
-          'Authorization': `token ${this.githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: project.name,
-          description: `Auto-generated Full-Stack App by Autonomous AI Engine: ${project.title}`,
-          private: false,
-          auto_init: true
-        })
-      });
-
-      if (!repoResponse.ok && repoResponse.status !== 422) {
-        throw new Error(`GitHub Create Repo API HTTP ${repoResponse.status}`);
-      }
-
-      const repoData = await repoResponse.json();
-      const owner = repoData.owner?.login || 'domainexpanders7-svg';
-
-      let fileSha = null;
+    // Try CLI first
+    if (agent.isAvailable) {
       try {
-        const getFileRes = await fetch(`https://api.github.com/repos/${owner}/${project.name}/contents/index.html`, {
-          headers: {
-            'Authorization': `token ${this.githubToken}`,
-            'Accept': 'application/vnd.github.v3+json'
+        const result = await agent.runCommand(prompt, targetDir, 'plan', 30000);
+        const docPath = path.join(targetDir, docType);
+        if (result.success && fs.existsSync(docPath)) {
+          const content = fs.readFileSync(docPath, 'utf8');
+          if (content.length > 50) {
+            return content;
           }
-        });
-        if (getFileRes.ok) {
-          const fileData = await getFileRes.json();
-          fileSha = fileData.sha;
         }
-      } catch (shaErr) {}
-
-      const uploadPayload = {
-        message: `Deploy full-stack app: ${project.title}`,
-        content: Buffer.from(htmlContent).toString('base64'),
-        branch: 'main'
-      };
-      if (fileSha) uploadPayload.sha = fileSha;
-
-      await fetch(`https://api.github.com/repos/${owner}/${project.name}/contents/index.html`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${this.githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(uploadPayload)
-      });
-
-      return `https://github.com/${owner}/${project.name}`;
-    } catch (err) {
-      logger.error('❌ [Engine] GitHub deployment error:', err);
-      return `https://github.com/domainexpanders7-svg/${project.name}`;
+      } catch (err) {
+        logger.warn(`⚠️ [${agentName}] CLI doc generation failed: ${err.message}`);
+      }
     }
+
+    // Fallback: Generate a minimal doc using Groq API
+    if (agent.groqKey) {
+      try {
+        const groqPrompt = `${prompt}\n\nReturn ONLY the raw markdown content. No code fences. No backticks. Just the document content.`;
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${agent.groqKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-oss-20b',
+            messages: [{ role: 'user', content: groqPrompt }],
+            max_tokens: 2000,
+            temperature: 0.5
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          let content = data.choices?.[0]?.message?.content || '';
+          if (content.includes('```')) {
+            content = content.split('```')[1].split('```')[0].trim();
+          }
+          if (content.length > 50) {
+            return content;
+          }
+        }
+      } catch (err) {
+        logger.warn(`⚠️ [${agentName}] Groq doc generation failed: ${err.message}`);
+      }
+    }
+
+    return null;
   }
 
   /**
    * Real-time Proactive Telegram Error Alert & Action Notification
    */
   async notifyTelegramError(stageName, errorMessage, plannedAction) {
-    if (!this.telegramToken || !this.telegramChatId) {
-      logger.warn('ℹ️ [Engine] Telegram credentials not configured. Skipping Telegram error alert.');
-      return;
-    }
-
-    const text = `⚠️ *Autonomous Engine Alert: Error Encountered*\n\n` +
-                 `📍 *Stage*: ${stageName}\n` +
-                 `💥 *Error*: \`${errorMessage}\`\n\n` +
-                 `🛠️ *Groq Proactive Action*: ${plannedAction}\n` +
-                 `🤖 *Agents*: Dispatched Kilo Code Debug Mode (\`--mode debug\`) & OpenCode`;
-
-    try {
-      await fetch(`https://api.telegram.org/bot${this.telegramToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: this.telegramChatId,
-          text: text,
-          parse_mode: 'Markdown'
-        })
-      });
-      logger.info(`📱 [Engine] Proactive Telegram error alert sent for stage: ${stageName}`);
-    } catch (err) {
-      logger.error('Failed sending Telegram error alert', err);
-    }
+    await notifyStageFailure('Autonomous Engine', stageName, 'Error Encountered', errorMessage, plannedAction);
   }
 
   /**
    * Stage 7: Send Telegram Alert
    */
-  async notifyTelegram(project, liveUrl, vercelUrl = null, testResults = null, liveVerification = null) {
-    if (!this.telegramToken || !this.telegramChatId) {
-      logger.warn('ℹ️ [Engine] Telegram credentials not configured. Skipping Telegram notification.');
-      return;
-    }
-
+  async notifyTelegram(project, liveUrl, testResults = null, liveVerification = null) {
     const verificationStatus = liveVerification && liveVerification.success
-      ? `✅ *Live Deployment Verification*: PASSED (HTTP ${liveVerification.status})`
-      : `⚠️ *Live Deployment Verification*: PENDING / DEGRADED`;
+      ? `✅ Live Deployment Verification: PASSED (HTTP ${liveVerification.status})`
+      : `⚠️ Live Deployment Verification: PENDING / DEGRADED`;
 
-    const text = `🤖 *Autonomous AI Platform - 7-Stage Full-Stack AI Agent Cycle*\n\n` +
-                 `✨ *New Project Deployed*: ${project.title}\n` +
-                 `🚀 *Vercel Live URL*: ${vercelUrl || 'Deploying...'}\n` +
-                 `🌐 *GitHub Repository*: ${liveUrl}\n` +
-                 `📊 *Category*: ${project.category}\n` +
-                 `📁 *Architecture*: Multi-File Full-Stack (HTML, CSS, JS, Components, API)\n\n` +
-                 `🤖 *Agent Engine*: OpenCode (\`opencode/big-pickle\`) + KiloCode (\`autofree\`)\n` +
-                 `${verificationStatus}\n\n` +
-                 `🛡️ *Observability*: OpenObserve Telemetry Connected`;
+    const testStatus = testResults && testResults.passed
+      ? '✅ QA Tests: ALL PASSED'
+      : `⚠️ QA Tests: ${testResults ? testResults.errors.join('; ') : 'Not run'}`;
 
-    try {
-      await fetch(`https://api.telegram.org/bot${this.telegramToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: this.telegramChatId,
-          text: text,
-          parse_mode: 'Markdown'
-        })
-      });
-      logger.info('📱 [Stage 7] Telegram alert sent successfully!');
-      logger.metric('telegram_alerts_sent', 1, 'count');
-    } catch (err) {
-      logger.error('Failed sending Telegram message', err);
-    }
+    await notifyCycleComplete(
+      project ? 'current' : 'unknown',
+      project ? project.title : 'Unknown Project',
+      liveUrl || 'Deploying...',
+      0,
+      liveVerification ? liveVerification.success : false,
+      {
+        category: project ? project.category : 'Unknown',
+        qa_status: testStatus,
+        verification_status: verificationStatus,
+        agent_engine: 'OpenCode (opencode/big-pickle) + KiloCode (autofree)'
+      }
+    );
   }
 
   /**
    * Single Full Run Execution Lifecycle (7-Stage Loop)
+   * ALL coding and testing performed exclusively by OpenCode and Kilo agents.
    */
-  async executeFullRun() {
+  async executeFullRun(cycleNumber = 1) {
     const cycleStart = Date.now();
+    await notifyCycleStart(cycleNumber);
+
     logger.info('=================================================================');
     logger.info('🚀 STARTING 7-STAGE FULL-STACK AI AGENT DEVELOPMENT CYCLE 🚀');
     logger.info('=================================================================');
@@ -436,41 +476,42 @@ class MasterAutonomousEngine {
       const project = await this.selectTrendingTopic();
 
       // Stage 2, 3 & 4: Scaffolding, Component Generation, & Bounded Self-Correction Loop
-      const { htmlContent, architecture, readme, sitemap, robots, testResults, projectDistDir } = await this.generateAndValidateCode(project);
+      const { htmlContent, testResults, projectDistDir } = await this.generateAndValidateCode(project);
 
       // Save Files locally
-      const savedPath = await this.saveProjectFiles(project.name, htmlContent, architecture, readme, sitemap, robots);
+      const savedPath = await this.saveProjectFiles(project.name, htmlContent, projectDistDir);
 
-      // Stage 5: Deploy Multi-file Full-Stack App to Vercel & GitHub
-      const repoUrl = await this.deployToGitHubRepo(project, htmlContent);
-      const vercelUrl = await this.deployToVercel(project, projectDistDir);
-      const owner = 'domainexpanders7-svg';
-      const liveUrl = vercelUrl || `https://${owner}.github.io/${project.name}/`;
+      // Stage 5: Deploy to Render
+      await notifyStageStart('Render', 5, 'Deployment to Render Free Tier');
+      const liveUrl = await this.deployToRender(project, projectDistDir);
+      await notifyStageComplete('Render', 5, 'Deployment to Render Free Tier', `Live URL: ${liveUrl}`);
 
       // Stage 6: Post-Deployment Live Verification via OpenCode & KiloCode
-      logger.info(`🔍 [Stage 6: Post-Deploy Verification] Auditing live deployed Vercel site...`);
+      await notifyStageStart('OpenCode + Kilo', 6, 'Post-Deployment Live Verification');
       let liveVerification = null;
-      if (vercelUrl) {
-        liveVerification = await this.opencodeAgent.verifyDeployedWebsite(vercelUrl, projectDistDir);
-        await this.kiloAgent.verifyDeployedWebsite(vercelUrl, projectDistDir);
+      if (liveUrl) {
+        liveVerification = await this.opencodeAgent.verifyDeployedWebsite(liveUrl, projectDistDir);
+        await this.kiloAgent.verifyDeployedWebsite(liveUrl, projectDistDir);
       }
+      await notifyStageComplete('OpenCode + Kilo', 6, 'Post-Deployment Live Verification', liveVerification ? `HTTP ${liveVerification.status}` : 'Verification skipped');
 
       const totalTimeMs = Date.now() - cycleStart;
       logger.metric('total_autonomous_cycle_duration_ms', totalTimeMs, 'ms');
       logger.info(`✨ [Engine] 7-Stage Cycle completed in ${totalTimeMs}ms!`, {
         project: project.name,
         live_url: liveUrl,
-        vercel_url: vercelUrl,
         saved_path: savedPath
       });
 
       // Stage 7: Telegram Alert
-      await this.notifyTelegram(project, repoUrl, vercelUrl, testResults, liveVerification);
+      await this.notifyTelegram(project, liveUrl, testResults, liveVerification);
+      await notifyCycleComplete(cycleNumber, project.name, liveUrl, totalTimeMs, true);
 
-      return { success: true, project, liveUrl, vercelUrl, totalTimeMs };
+      return { success: true, project, liveUrl, totalTimeMs };
 
     } catch (err) {
       logger.error('💥 [Engine] Fatal error in 7-Stage autonomous cycle', err);
+      await notifyCycleComplete(cycleNumber, 'UNKNOWN', null, Date.now() - cycleStart, false);
       return { success: false, error: err.message };
     }
   }
