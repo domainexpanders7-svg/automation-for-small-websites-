@@ -376,7 +376,9 @@ Create all these files with minimal placeholder content.`;
     // Try CLI first
     if (agent.isAvailable) {
       try {
-        const result = await agent.runCommand(prompt, targetDir, 'plan', 30000);
+        const result = agentName === 'OpenCode'
+          ? await agent.runCommand(prompt, targetDir, 30000)
+          : await agent.runCommand(prompt, targetDir, 'plan', 30000);
         const docPath = path.join(targetDir, docType);
         if (result.success && fs.existsSync(docPath)) {
           const content = fs.readFileSync(docPath, 'utf8');
