@@ -96,7 +96,7 @@ Sitemap: ${liveUrl}sitemap.xml`;
     let jsErrors = [];
     while ((match = scriptRegex.exec(html)) !== null) {
       const jsCode = match[1].trim();
-      if (jsCode && !match[0].includes('src=')) {
+      if (jsCode && !match[0].includes('src=') && !match[0].toLowerCase().includes('json')) {
         try {
           new vm.Script(jsCode);
         } catch (err) {
