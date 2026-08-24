@@ -1,145 +1,202 @@
-# Zero-Cost & Low-Data Deployment Guide
+# Autonomous AI Website Builder - Render Deployment Guide
 
-This guide details how to host your project live on **Cloudflare Pages** or **Vercel** so that every time you update your code locally, it deploys automatically to the internet without consuming your mobile/local data.
-
----
-
-## ⚡ Why This Saves Internet Data
-
-| Traditional Local Workflow | Our Direct Cloud Deployment Workflow |
-| :--- | :--- |
-| Download heavy `node_modules` (300 MB - 1 GB data) | Zero downloads needed locally |
-| Run local test servers constantly consuming battery & bandwidth | Build happens on Cloudflare/Vercel servers for free |
-| Manual FTP / upload per update | `git push` sends only modified text (10 KB - 50 KB data) |
+This guide details how to deploy and run the autonomous AI website builder on **Render Free Tier**.
 
 ---
 
-## 🤖 Server-Side OpenCode (`opencode/big-pickle`) Integration
+## Architecture Summary
 
-To run OpenCode directly on your deployed backend server (e.g. Render, Docker, or Linux VPS) for website building and testing:
+The system runs a 7-stage autonomous development loop:
 
-1. **Install OpenCode CLI on the server**:
+1. **Research** - Select trending topic using AgentReach web search
+2. **Scaffolding** - OpenCode CLI creates project structure
+3. **Component Generation** - OpenCode CLI (`opencode/big-pickle`) generates code, KiloCode (`autofree`) as fallback
+4. **Testing & Self-Correction** - KiloCode debug mode runs QA tests and repairs code (max 3 attempts)
+5. **Deployment** - Deploy to Render via API or webhook
+6. **Post-Deployment Verification** - OpenCode + KiloCode audit live URL
+7. **Telegram Notification** - Real-time status updates via Telegram bot
+
+**All coding and testing is performed EXCLUSIVELY by OpenCode and Kilo agents.**
+**No pre-existing templates. No external codebase imports for generation.**
+
+---
+
+## Prerequisites
+
+- Node.js 18+ installed locally
+- Git installed locally
+- Telegram Bot Token and Chat ID
+- Render account (free tier)
+- Groq API Key (for AI fallback)
+
+---
+
+## Step 1: Prepare Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+# Telegram Configuration
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
+
+# Render Configuration
+RENDER_API_KEY=your_render_api_key
+RENDER_SERVICE_ID=your_render_service_id
+RENDER_EXTERNAL_URL=https://your-service.onrender.com
+RENDER_DEPLOY_WEBHOOK=https://api.render.com/v1/services/your-service/deploys
+
+# AI API Keys (fallback when CLIs unavailable)
+GROQ_API_KEY=your_groq_api_key
+
+# Optional: Automation interval in minutes (default: 60)
+AUTOMATION_INTERVAL_MINUTES=60
+```
+
+---
+
+## Step 2: Deploy to Render
+
+### Option A: Deploy via Render Dashboard (Recommended)
+
+1. Go to [dashboard.render.com](https://dashboard.render.com)
+2. Click **New +** → **Web Service**
+3. Connect your GitHub repository
+4. Configure:
+   - **Name**: `autonomous-website-builder`
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node services/daemon.js`
+   - **Plan**: `Free`
+5. Add environment variables from Step 1
+6. Click **Create Web Service**
+
+### Option B: Deploy via render.yaml
+
+Create a `render.yaml` file in your project root:
+
+```yaml
+services:
+  - type: web
+    name: autonomous-website-builder
+    env: node
+    buildCommand: npm install
+    startCommand: node services/daemon.js
+    plan: free
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: RENDER_SERVICE_ID
+        sync: false
+      - key: RENDER_EXTERNAL_URL
+        fromService:
+          type: web
+          name: autonomous-website-builder
+          property: hostname
+      - key: AUTOMATION_INTERVAL_MINUTES
+        value: "60"
+```
+
+Then deploy:
+```bash
+npm install -g render-cli
+render deploy
+```
+
+---
+
+## Step 3: Verify Deployment
+
+1. Check Render dashboard for your service status
+2. Visit `https://your-service.onrender.com/health` - should return JSON with status `ONLINE`
+3. Check Telegram for daemon startup notification
+4. Trigger a manual build via webhook:
    ```bash
-   npm install -g opencode
+   curl https://your-service.onrender.com/trigger
    ```
-2. **Configure Default Model**:
-   The engine automatically runs `opencode run -m opencode/big-pickle` on the server host.
-3. **Environment Setup**:
-   Ensure API key environment variables (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`) are set in your server dashboard.
 
 ---
 
-## 🚀 Option 1: Cloudflare Pages Setup (Recommended)
+## Step 4: Configure Telegram Notifications
 
-### Step 1: Create a Free GitHub Repository
-1. Go to [github.com/new](https://github.com/new).
-2. Repository Name: `website-builder-automation`.
-3. Set to **Public** or **Private** and click **Create repository**.
+The daemon sends real-time notifications for:
+- Daemon startup
+- Each stage start/completion/failure
+- Agent fallback events
+- Render trigger received
+- Deployment success/failure
+- Full cycle completion
 
-### Step 2: Push Code from Terminal
-Open your terminal in this workspace and run:
+Ensure your Telegram bot token and chat ID are correctly set in environment variables.
 
+---
+
+## Step 5: OpenCode & KiloCode CLI Setup
+
+For the agents to use CLI mode (instead of Groq API fallback):
+
+### OpenCode CLI
 ```bash
-git init
-git add .
-git commit -m "Initial commit: Architecture & Web App"
-git branch -M main
-git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/website-builder-automation.git
-git push -u origin main
+npm install -g opencode
+# Verify installation
+opencode --version
 ```
 
-### Step 3: Connect to Cloudflare Pages (Free)
-1. Log in to [dash.cloudflare.com](https://dash.cloudflare.com).
-2. Click **Workers & Pages** -> **Create application** -> **Pages**.
-3. Select **Connect to Git** and choose your GitHub repo `website-builder-automation`.
-4. Build settings:
-   - Framework preset: `None` (Static HTML/JS)
-   - Build command: *(Leave empty)*
-   - Build output directory: `.`
-5. Click **Save and Deploy**.
-
-🎉 **Done!** You will get a live URL like `https://website-builder-automation.pages.dev`.
-
----
-
-## 🚀 Option 2: Vercel Setup (Alternative)
-
-1. Go to [vercel.com/new](https://vercel.com/new).
-2. Import your GitHub repository `website-builder-automation`.
-3. Framework Preset: **Other**.
-4. Click **Deploy**.
-
----
-
----
-
-## 🤖 100% Free Lifetime AI Models Setup
-
-To run the AI agents without spending any money on API fees:
-
-### 1. Google Gemini API (Free Tier - 1,500 Requests/Day)
-1. Go to [aistudio.google.com](https://aistudio.google.com).
-2. Click **Get API Key** -> **Create API Key**.
-3. Copy the key and add it to your `.env` file:
-   ```env
-   GEMINI_API_KEY="your_gemini_api_key_here"
-   ```
-
-### 2. Groq Cloud API (Free Tier - 14,400 Requests/Day)
-1. Go to [console.groq.com](https://console.groq.com).
-2. Click **API Keys** -> **Create API Key**.
-3. Add it to your `.env` file:
-   ```env
-   GROQ_API_KEY="your_groq_api_key_here"
-   ```
-
----
-
-## 🛠️ AI Toolchain Execution (OpenCode & Kilo)
-
-* **OpenCode / Zen** (For quick features & single-file edits):
-  ```bash
-  opencode
-  ```
-* **Kilo** (For repository-wide multi-file generation & heavy refactoring):
-  ```bash
-  kilo
-  ```
-
----
-
-## 💰 Adsterra & Monetag Monetization Setup ($5 Bank Payouts)
-
-### Step 1: Register Free Account
-1. Sign up on [Adsterra](https://adsterra.com) or [Monetag](https://monetag.com) (No credit/debit card required).
-2. Click **Add Website** and paste your live `.pages.dev` or `.vercel.app` URL.
-3. Select ad unit type:
-   - **Banner Ad** (728x90 or 300x250)
-   - **Native / Social Bar Ad** (High CPM)
-
-### Step 2: Paste Ad Codes in `index.html`
-1. Copy the generated JavaScript code snippet from Adsterra / Monetag.
-2. Open [index.html](file:///d:/CODE%20JAANI%20CODE/testing%20an%20website%20builder%20automations/index.html).
-3. Paste the code snippet inside `#ad-slot-top` or `#ad-slot-bottom`.
-
-### Step 3: Configure Bank Payouts
-1. Go to **Payments** / **Profile** in your Adsterra / Monetag dashboard.
-2. Select **Bank Transfer / Wire / PayPal**.
-3. Enter your Indian Bank Account Number + IFSC Code.
-4. Earnings automatically transfer once you hit the **$5 (₹400)** threshold!
-
----
-
-## 🔄 Daily Workflow for Zero Data Usage
-
-Whenever you want to make changes or add features:
-1. Edit files in VS Code / Antigravity.
-2. Run these 3 simple commands in terminal:
-
+### KiloCode CLI
 ```bash
-git add .
-git commit -m "Updated site design and ad slots"
-git push
+npm install -g kilo
+# Verify installation
+kilo --version
 ```
 
-**That's it!** Within 15 seconds, your live public URL will automatically update with your new changes!
+The agents will automatically detect CLI availability on server startup and notify via Telegram.
+
+---
+
+## Render Free Tier Considerations
+
+1. **Cold Starts**: Render free tier sleeps after 15 minutes of inactivity
+   - **Mitigation**: Daemon self-pings every 5 minutes via `RENDER_EXTERNAL_URL`
+   - **Mitigation**: Use external cron (e.g., cron-job.org) to hit `/trigger` every 15 minutes
+
+2. **Build Time**: Limited to 15 minutes on free tier
+   - **Mitigation**: The 7-stage loop is optimized for fast execution
+   - **Mitigation**: Agents use bounded retry limits (max 3 attempts per stage)
+
+3. **Service Spins Down**: Service may spin down during low traffic
+   - **Mitigation**: Self-ping keep-alive mechanism built into daemon
+   - **Mitigation**: Telegram notifications alert when service comes back online
+
+---
+
+## Manual Trigger via Telegram
+
+Send `/trigger` to your Telegram bot to manually start a build cycle.
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Service sleeping | Check self-ping is working; verify `RENDER_EXTERNAL_URL` is set |
+| CLI not detected | Install OpenCode/Kilo CLI globally on Render using `npm install -g` |
+| Groq API fallback not working | Verify `GROQ_API_KEY` is set in Render environment variables |
+| Telegram notifications not received | Verify bot token and chat ID; check bot is not blocked |
+| Build timeout | Reduce `AUTOMATION_INTERVAL_MINUTES` or optimize agent prompts |
+
+---
+
+## Security Notes
+
+- Never commit `.env` file to Git
+- Use Render's environment variable dashboard for secrets
+- Telegram bot token should have restricted permissions
+- Groq API key should be kept confidential
+- Render API key should have minimum required permissions
