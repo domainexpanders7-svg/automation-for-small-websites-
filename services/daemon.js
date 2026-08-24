@@ -27,12 +27,26 @@ class AutonomousDaemon {
    */
   setupHttpServer() {
     const server = http.createServer((req, res) => {
+      const url = req.url || '/';
+      if (url.startsWith('/trigger') || url.startsWith('/build')) {
+        logger.info(`🌐 [HTTP Trigger] Remote build trigger received on Render server: ${url}`);
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'PROCESSING',
+          message: '7-Stage AI Agent Development Cycle initiated on Render cloud server.',
+          cycles_completed: this.cycleCount + 1
+        }));
+        this.runSingleCycle();
+        return;
+      }
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         status: 'ONLINE',
         service: 'Autonomous AI Website Builder Daemon',
         uptime_seconds: process.uptime(),
-        cycles_completed: this.cycleCount
+        cycles_completed: this.cycleCount,
+        trigger_url: '/trigger'
       }));
     });
 
