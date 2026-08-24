@@ -1,11 +1,20 @@
 /**
  * Continuous Always-Running Daemon Service
  * Runs the Master Autonomous AI Engine periodically in background
+ * 
+ * Render Free Tier Optimizations:
+ * - Self-ping every 5 minutes to prevent cold starts
+ * - HTTP /trigger endpoint for webhook-triggered builds
+ * - Telegram notifications for daemon status
  */
 
 const http = require('http');
 const MasterAutonomousEngine = require('./autonomous_engine');
 const TelegramBotController = require('./telegram_bot');
+const {
+  notifyRenderTrigger,
+  notifyCLIStatus
+} = require('./telegram_notifier');
 const { logger } = require('./observability');
 
 // Configurable Interval (Default: Every 1 hour = 3600000 ms, or ENV specified)
@@ -24,40 +33,56 @@ class AutonomousDaemon {
 
   /**
    * Health-check HTTP server to keep Render Free tier awake 24/7
+   * Handles /trigger and /build endpoints for webhook-triggered builds
    */
   setupHttpServer() {
-    const server = http.createServer((req, res) => {
+    const server = http.createServer(async (req, res) => {
       const url = req.url || '/';
+
       if (url.startsWith('/trigger') || url.startsWith('/build')) {
         logger.info(`🌐 [HTTP Trigger] Remote build trigger received on Render server: ${url}`);
+        await notifyRenderTrigger('webhook');
+
         res.writeHead(202, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           status: 'PROCESSING',
           message: '7-Stage AI Agent Development Cycle initiated on Render cloud server.',
-          cycles_completed: this.cycleCount + 1
+          cycles_completed: this.cycleCount + 1,
+          trigger_url: url
         }));
+
         this.runSingleCycle();
         return;
       }
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: 'ONLINE',
-        service: 'Autonomous AI Website Builder Daemon',
-        uptime_seconds: process.uptime(),
-        cycles_completed: this.cycleCount,
-        trigger_url: '/trigger'
-      }));
+      if (url === '/health' || url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'ONLINE',
+          service: 'Autonomous AI Website Builder Daemon',
+          uptime_seconds: process.uptime(),
+          cycles_completed: this.cycleCount,
+          trigger_url: '/trigger',
+          render_url: process.env.RENDER_EXTERNAL_URL || 'N/A'
+        }));
+        return;
+      }
+
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not Found' }));
     });
 
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       logger.info(`🌐 [Keep-Alive] HTTP Health Check Server listening on PORT ${PORT}`);
+      notifyCLIStatus('Daemon', `Server listening on port ${PORT}. Render external URL: ${process.env.RENDER_EXTERNAL_URL || 'N/A'}`);
     });
 
     // Self-ping loop every 5 minutes to prevent Render free tier sleep
     setInterval(() => {
       const selfUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-      fetch(selfUrl).catch(() => {});
+      fetch(selfUrl).catch(() => {
+        logger.warn(`⚠️ [Keep-Alive] Self-ping failed for ${selfUrl}`);
+      });
     }, 5 * 60 * 1000);
   }
 
@@ -73,7 +98,7 @@ class AutonomousDaemon {
     logger.info(`=================================================================`);
 
     try {
-      const result = await this.engine.executeFullRun();
+      const result = await this.engine.executeFullRun(this.cycleCount);
       logger.info(`✅ [Daemon] Cycle #${this.cycleCount} finished successfully`, { result });
     } catch (err) {
       logger.error(`❌ [Daemon] Cycle #${this.cycleCount} encountered an error`, err);
@@ -90,6 +115,7 @@ class AutonomousDaemon {
     logger.info('=================================================================');
     logger.info('🚀 AUTONOMOUS AI WEBSITE BUILDER DAEMON STARTED (ALWAYS RUNNING) 🚀');
     logger.info(`⏱️ Schedule Interval: Every ${INTERVAL_MS / 60000} minutes`);
+    logger.info(`🌐 Render Trigger: ${process.env.RENDER_EXTERNAL_URL || 'N/A'}/trigger`);
     logger.info('=================================================================');
 
     // Run first cycle immediately
