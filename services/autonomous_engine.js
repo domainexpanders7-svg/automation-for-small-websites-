@@ -100,6 +100,7 @@ class MasterAutonomousEngine {
         body: JSON.stringify({
           name: project.name,
           files: filesPayload,
+          target: 'production',
           projectSettings: { framework: null }
         })
       });
