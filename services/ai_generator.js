@@ -146,11 +146,98 @@ class AIGenerator {
     const adScriptBottom = process.env.ADSTERRA_NATIVE_SCRIPT || process.env.MONETAG_SCRIPT || defaultAdsterraScript;
 
     const lowerName = (project.name || '').toLowerCase();
-    
-    // Topic-specific interactive JS engines
     let interactiveBody = '';
+    
+    if (lowerName.includes('gym') || lowerName.includes('workout') || lowerName.includes('fitness') || lowerName.includes('trainer')) {
+      interactiveBody = `
+        <div style="margin-bottom: 1.5rem;">
+          <h2 style="color:var(--accent-primary); margin-top:0;">💪 Personal Gym Trainer & Client Workout Tracker Pro</h2>
+          <p style="color:var(--text-muted);">Manage client workout routines, calculate 1-Rep Max (1RM), track target calorie intake & macro splits.</p>
 
-    if (lowerName.includes('pdf') || lowerName.includes('compress') || lowerName.includes('merge')) {
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div class="input-group">
+              <label style="display:block; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.3rem;">Client Name:</label>
+              <input type="text" id="client-name" value="Alex Johnson" style="width:100%; padding:0.8rem; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); border-radius:0.5rem; color:#fff;">
+            </div>
+            <div class="input-group">
+              <label style="display:block; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.3rem;">Training Goal:</label>
+              <select id="fitness-goal" style="width:100%; padding:0.8rem; background:#0f172a; border:1px solid var(--border-color); border-radius:0.5rem; color:#fff;">
+                <option value="hypertrophy">Muscle Gain (Hypertrophy)</option>
+                <option value="fat_loss">Fat Loss & Conditioning</option>
+                <option value="strength">Powerlifting & Strength</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label style="display:block; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.3rem;">Body Weight (kg):</label>
+              <input type="number" id="body-weight" value="75" style="width:100%; padding:0.8rem; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); border-radius:0.5rem; color:#fff;">
+            </div>
+            <div class="input-group">
+              <label style="display:block; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.3rem;">Bench Press Weight (kg):</label>
+              <input type="number" id="lift-weight" value="85" style="width:100%; padding:0.8rem; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); border-radius:0.5rem; color:#fff;">
+            </div>
+            <div class="input-group">
+              <label style="display:block; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.3rem;">Reps Performed:</label>
+              <input type="number" id="lift-reps" value="6" style="width:100%; padding:0.8rem; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); border-radius:0.5rem; color:#fff;">
+            </div>
+          </div>
+
+          <button class="btn-action" style="margin-top: 1.25rem; width:100%; cursor:pointer;" onclick="generateWorkoutPlan()">⚡ Generate Custom Workout Routine & Macro Targets</button>
+        </div>
+
+        <div class="result-box" id="result-box" style="display:none; padding:1.5rem; background:rgba(15,23,42,0.8); border:1px solid var(--accent-primary); border-radius:0.75rem;">
+          <h3 style="color:var(--accent-primary); margin-top:0;">🎯 AI Workout & Macro Plan for <span id="res-client-name"></span></h3>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+            <div style="padding:1rem; background:rgba(255,255,255,0.05); border-radius:0.75rem; border:1px solid var(--border-color);">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Estimated 1-Rep Max (1RM)</span>
+              <div id="res-1rm" style="font-size:1.6rem; font-weight:800; color:var(--accent-primary);">-- kg</div>
+            </div>
+            <div style="padding:1rem; background:rgba(255,255,255,0.05); border-radius:0.75rem; border:1px solid var(--border-color);">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Daily Target Calories</span>
+              <div id="res-calories" style="font-size:1.6rem; font-weight:800; color:var(--accent-purple);">-- kcal</div>
+            </div>
+            <div style="padding:1rem; background:rgba(255,255,255,0.05); border-radius:0.75rem; border:1px solid var(--border-color);">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Daily Protein Target</span>
+              <div id="res-protein" style="font-size:1.6rem; font-weight:800; color:var(--accent-green);">-- g</div>
+            </div>
+          </div>
+
+          <div style="padding:1rem; background:rgba(0,0,0,0.4); border-radius:0.75rem;">
+            <strong style="color:#fff;">🏋️ Recommended Weekly Split:</strong>
+            <ul id="workout-list" style="margin:0.5rem 0 0 1.2rem; color:var(--text-muted);"></ul>
+          </div>
+        </div>
+
+        <script>
+          function generateWorkoutPlan() {
+            const name = document.getElementById('client-name').value || 'Client';
+            const weight = parseFloat(document.getElementById('body-weight').value) || 70;
+            const liftW = parseFloat(document.getElementById('lift-weight').value) || 60;
+            const liftR = parseFloat(document.getElementById('lift-reps').value) || 5;
+            const goal = document.getElementById('fitness-goal').value;
+
+            const oneRm = Math.round(liftW * (1 + liftR / 30));
+            let cals = Math.round(weight * 33);
+            let protein = Math.round(weight * 2.2);
+
+            if (goal === 'hypertrophy') cals += 350;
+            if (goal === 'fat_loss') cals -= 400;
+
+            document.getElementById('res-client-name').innerText = name;
+            document.getElementById('res-1rm').innerText = oneRm + ' kg';
+            document.getElementById('res-calories').innerText = cals + ' kcal';
+            document.getElementById('res-protein').innerText = protein + ' g';
+
+            const list = document.getElementById('workout-list');
+            list.innerHTML = '<li><strong>Mon:</strong> Chest & Triceps (Bench Press 4x' + Math.round(oneRm * 0.75) + 'kg)</li>' +
+                             '<li><strong>Tue:</strong> Back & Biceps (Barbell Rows 4x8, Lat Pulldowns)</li>' +
+                             '<li><strong>Thu:</strong> Legs & Core (Squats 4x6, Romanian Deadlifts)</li>' +
+                             '<li><strong>Fri:</strong> Shoulders & Arms (Overhead Press 4x8, Lateral Raises)</li>';
+            
+            document.getElementById('result-box').style.display = 'block';
+          }
+        </script>
+      `;
+    } else if (lowerName.includes('pdf') || lowerName.includes('compress') || lowerName.includes('merge')) {
       interactiveBody = `
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
           <div style="font-size: 3rem; margin-bottom: 0.75rem; color:var(--accent-primary);">⚡</div>
